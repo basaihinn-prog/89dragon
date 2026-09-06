@@ -1,0 +1,19 @@
+{
+    "generated_at": "2025-12-01 12:33:44",
+    "api_keys": {
+        "production": "XwZLCzYHh44zLCQgebMzuOdJdy5Zs8TLETgnmgxKbLI77PhoYL8hg2PYyiO4OVHy",
+        "development": "j5VkzT5A8ikNICicxkTENKC4RAjFZPra0loFFVwYyOQcAyVRxCiRJQzjhE9XPxTl",
+        "testing": "uGsRd4jw5h1aoZ4IAIhcLAD6V8u9ofGEcXcn7Ur7PnqzvFfMsv1S7fcjotpLt3EA"
+    },
+    "usage": {
+        "header": "X-API-Key",
+        "example": "curl -H \"X-API-Key: {api_key}\" https:\/\/bxbet.asia\/api\/games"
+    },
+    "endpoints": {
+        "base_url": "https:\/\/bxbet.asia",
+        "api_url": "https:\/\/bxbet.asia\/api",
+        "websocket_slots": "wss:\/\/bxbet.asia:22150\/slots",
+        "websocket_arcade": "wss:\/\/bxbet.asia:22180\/arcade",
+        "websocket_server": "wss:\/\/bxbet.asia:22190\/server"
+    }
+}

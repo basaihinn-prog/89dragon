@@ -1,0 +1,316 @@
+================================================================================
+COMPLETE API ENDPOINTS LIST
+VanguardLTE Casino Platform
+Base URL: https://bxbet.asia/api/
+================================================================================
+
+================================================================================
+MOBILE APP API (Public - No IP restrictions)
+================================================================================
+Base URL: https://bxbet.asia/api/mobile/
+
+--- Games & Data ---
+GET  /api/mobile/games                      - List all games
+GET  /api/mobile/games/categories           - Get game categories
+GET  /api/mobile/games/{name}               - Get specific game details
+GET  /api/mobile/games/{name}/launch        - Launch game session
+GET  /api/mobile/game-activity              - Get game activity logs
+GET  /api/mobile/game-stats                 - Get game statistics
+
+--- User Profile & Account ---
+GET  /api/mobile/profile                    - Get user profile with balance
+GET  /api/mobile/balance/refresh            - Real-time balance refresh (RECOMMENDED)
+POST /api/mobile/password/change            - Change user password
+GET  /api/mobile/sessions                   - Get active sessions
+DEL  /api/mobile/sessions/{id}              - Invalidate specific session
+
+--- Transactions & History ---
+GET  /api/mobile/transactions               - Transaction history
+GET  /api/mobile/jackpots                   - Jackpot wins history
+
+--- Bonuses & Rewards ---
+GET  /api/mobile/bonuses/available          - List available bonuses
+GET  /api/mobile/refunds/available          - List available refunds
+POST /api/mobile/refunds/claim              - Claim a refund
+POST /api/mobile/voucher/activate           - Activate voucher code
+GET  /api/mobile/daily-rewards/status       - Daily reward status
+POST /api/mobile/daily-rewards/claim        - Claim daily reward
+
+--- Deposits & Withdrawals ---
+POST /api/mobile/withdraw/request           - Request withdrawal
+GET  /api/mobile/withdraw/history           - Withdrawal history
+POST /api/mobile/deposit/initiate           - Initiate deposit
+
+--- Shop & Favorites ---
+GET  /api/mobile/shops/{id}                 - Get shop details
+POST /api/mobile/favorites/add/{game}       - Add game to favorites
+DEL  /api/mobile/favorites/remove/{game}    - Remove from favorites
+GET  /api/mobile/favorites                  - Get favorite games
+
+--- Notifications ---
+GET  /api/mobile/notifications              - Get user notifications
+POST /api/mobile/notifications/read/{id}    - Mark notification as read
+
+================================================================================
+AUTHENTICATION API (IP Restricted)
+================================================================================
+
+--- Auth Endpoints ---
+POST /api/login                             - User login (returns JWT token)
+POST /api/logout                            - User logout
+POST /api/register                          - User registration (if enabled in settings)
+POST /api/register/verify-email/{token}     - Verify email (if email verification enabled)
+POST /api/password/remind                   - Request password reset (if enabled)
+POST /api/password/reset                    - Reset password (if enabled)
+
+--- Special Auth ---
+GET  /launcher/{game}/{token}               - Game launcher authentication
+GET  /api/player/apilogin/{token}           - API token login
+
+================================================================================
+USER MANAGEMENT API (IP Restricted, Auth Required)
+================================================================================
+
+--- Current User (Me) ---
+GET   /api/me                               - Get current user details
+PATCH /api/me/details                       - Update user details
+GET   /api/me/refund                        - Get user refunds
+POST  /api/me/balance                       - Get user balance
+
+--- User CRUD (Admin/Agent/Cashier roles) ---
+GET    /api/users                           - List users (paginated)
+GET    /api/users/{user}                    - Get specific user
+POST   /api/users                           - Create new user
+PUT    /api/users/{user}                    - Update user
+DELETE /api/users/{user}                    - Delete user
+POST   /api/users/mass                      - Mass user operations
+PUT    /api/users/{user}/balance/{type}     - Add/subtract user balance
+                                              Parameters: {type} = 'add' or 'out'
+                                              Body: {"summ": 100.00, "all": "0"}
+
+================================================================================
+SHOP MANAGEMENT API (IP Restricted, Auth Required)
+================================================================================
+
+GET    /api/shops                           - List all shops
+GET    /api/shops/currency                  - Get currency info
+GET    /api/shops/{id}/view                 - View shop details
+POST   /api/shops/create                    - Create new shop
+PUT    /api/shops/{shop}/update             - Update shop
+DELETE /api/shops/{id}/destroy              - Delete shop
+PUT    /api/shops/{shop}/balance/{type}     - Add/subtract shop balance
+PUT    /api/shops/block                     - Block shop (requires permission:shops.block)
+PUT    /api/shops/unblock                   - Unblock shop (requires permission:shops.unblock)
+POST   /api/shops/admin                     - Shop admin operations
+
+================================================================================
+GAMES API (IP Restricted, Auth Required)
+================================================================================
+
+GET  /api/games                             - List all games
+GET  /api/category                          - List game categories
+GET  /api/jackpots                          - List jackpots
+
+================================================================================
+PINCODE/VOUCHER API (IP Restricted, Auth Required)
+================================================================================
+
+GET    /api/pincodes                        - List pincodes
+POST   /api/pincodes/store                  - Create pincode
+POST   /api/pincodes/mass                   - Mass pincode operations
+PUT    /api/pincodes/{pincode}/update       - Update pincode
+DELETE /api/pincodes/{pincode}/destroy      - Delete pincode
+POST   /api/pincodes/check                  - Check/validate pincode
+
+================================================================================
+STATISTICS & REPORTS API (IP Restricted, Auth Required)
+================================================================================
+
+GET  /api/stats/pay                         - Payment statistics
+GET  /api/stats/game                        - Game statistics
+GET  /api/stats/shift                       - Shift statistics
+PUT  /api/shifts/start                      - Start new shift
+GET  /api/shifts/info                       - Current shift info
+GET  /api/happyhours                        - Happy hour configurations
+GET  /api/paysystems                        - Payment systems info
+
+================================================================================
+PLAYER STATUS API (No Auth Required)
+================================================================================
+
+GET  /api/player/getlic                     - Request license
+POST /api/player/licsaved                   - Save license
+GET  /api/player/isonline                   - Check if player online
+GET  /api/player/check-user-login           - Check user login status
+GET  /api/player/testlogin                  - Test login synchronously
+GET  /api/player/read                       - Get user data
+GET  /api/player/score                      - Check user score
+GET  /api/player/withdrawticket             - Withdraw ticket payout
+
+================================================================================
+CREDITS/TRANSACTIONS API
+================================================================================
+
+GET  /api/credits                           - List credits
+GET  /api/credits/depositusb                - USB deposit credits
+GET  /api/credits/pending-depositusb        - Pending cash-in transactions
+GET  /api/cashier/readbalance               - Read shop balance (cashier)
+GET  /api/cashier/readinamounts             - Read in-amounts (cashier)
+
+================================================================================
+ATM/KIOSK API V2
+================================================================================
+
+POST /api/V2                                - Main ATM controller endpoint
+
+--- V2 Endpoints (Currently Commented Out) ---
+POST /api/V2/player/depositusb              - USB deposit
+POST /api/V2/player/withdrawusb             - USB withdrawal
+POST /api/V2/player/withdrawusbcashout      - USB withdrawal + cashout
+POST /api/V2/player/withdrawticket          - Ticket payout
+POST /api/V2/atm/ping                       - ATM ping
+POST /api/V2/player/activate                - Activate user
+POST /api/V2/player/checkbarcode            - Check barcode
+POST /api/V2/player/updatebarcode           - Save barcode
+POST /api/V2/player/deposit                 - Pending cash-in
+POST /api/V2/player/forgotpassword          - Forgot password
+POST /api/V2/player/resetpassword           - Reset password
+POST /api/V2/player/checkmagcard            - Check magnetic card
+POST /api/V2/player/checkpanic              - Check panic mode
+POST /api/V2/player/createuservoucher       - Create user voucher
+POST /api/V2/atm/updaterec                  - Update records
+POST /api/V2/player/readcredits             - Read credits
+POST /api/V2/player/create                  - Create user
+POST /api/V2/player/createupdatecode        - Create update code
+POST /api/V2/player/update                  - Save settings
+POST /api/V2/player/login                   - Sign in
+POST /api/V2/player/vouchersignin           - Voucher sign in
+POST /api/V2/player/createwcode             - Create withdraw code
+POST /api/V2/player/withdraw                - Cash out
+
+================================================================================
+DEMO API
+================================================================================
+
+POST /api/demo                              - Demo mode endpoint
+POST /api/agent/trial                       - Agent trial endpoint
+
+================================================================================
+MISCELLANEOUS
+================================================================================
+
+POST /api/sms                               - Send SMS
+
+================================================================================
+AUTHENTICATION DETAILS
+================================================================================
+
+Most endpoints require JWT Bearer token in header:
+  Authorization: Bearer {your_jwt_token_here}
+
+To get a token:
+  POST /api/login
+  Body: {"username": "user", "password": "pass"}
+  Response: {"token": "eyJ0eXAiOiJKV1QiLCJhbGc..."}
+
+================================================================================
+RESPONSE FORMAT
+================================================================================
+
+All endpoints return JSON responses, typically in this format:
+
+Success Response:
+{
+  "data": {...},
+  "status": "success",
+  "message": "Operation successful"
+}
+
+Error Response:
+{
+  "error": "Error description",
+  "status": "error",
+  "message": "Detailed error message"
+}
+
+================================================================================
+ROLE HIERARCHY
+================================================================================
+
+Role ID | Role Name    | Description
+--------|--------------|------------------------------------------
+1       | User         | Regular players (52 users currently)
+2       | Cashier      | Cashier accounts
+3       | Manager      | Manager accounts
+4       | Distributor  | Distributor accounts
+5       | Agent        | Agent accounts
+6       | Admin        | Administrator (full access)
+
+================================================================================
+COMMON USE CASES
+================================================================================
+
+1. Player Login & Get Balance:
+   POST /api/login
+   GET  /api/mobile/profile
+   GET  /api/mobile/balance/refresh
+
+2. Launch Game:
+   GET  /api/mobile/games
+   GET  /api/mobile/games/{name}/launch
+
+3. Check Transactions:
+   GET  /api/mobile/transactions
+   GET  /api/mobile/jackpots
+
+4. Admin - Manage User Balance:
+   GET  /api/users/{user}
+   PUT  /api/users/{user}/balance/add
+
+5. Claim Rewards:
+   GET  /api/mobile/refunds/available
+   POST /api/mobile/refunds/claim
+   GET  /api/mobile/daily-rewards/status
+   POST /api/mobile/daily-rewards/claim
+
+================================================================================
+TOTAL ENDPOINT COUNT: ~100+
+================================================================================
+
+Categories:
+- Mobile API (No IP check):        26 endpoints
+- Authentication:                   7 endpoints
+- User Management:                  8 endpoints
+- Shop Management:                 10 endpoints
+- Games:                            3 endpoints
+- Pincodes:                         6 endpoints
+- Statistics:                       7 endpoints
+- Player Status:                    7 endpoints
+- Credits:                          5 endpoints
+- ATM V2:                          20+ endpoints
+- Demo:                             2 endpoints
+
+================================================================================
+NOTES
+================================================================================
+
+1. IP Check Middleware: Some endpoints are behind 'ipcheck' middleware
+2. Permission Middleware: Admin endpoints require specific permissions
+3. Settings-Based: Some routes only available if enabled in settings
+   - Registration: settings('reg_enabled')
+   - Password Reset: settings('forgot_password')
+   - Email Verification: settings('use_email')
+
+4. File Locations:
+   - Main API Routes: casino/routes/api.php
+   - Web Routes: casino/routes/web.php
+   - Controllers: casino/app/Http/Controllers/Api/
+
+5. Database Prefix: All tables use 'w_' prefix (e.g., w_users, w_games)
+
+================================================================================
+Generated: 2025-12-02
+Platform: VanguardLTE Casino
+Laravel Version: 11.x
+PHP Version: 8.3.6
+================================================================================

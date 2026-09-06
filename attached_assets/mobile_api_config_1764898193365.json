@@ -1,0 +1,123 @@
+{
+  "app_name": "VanguardLTE Casino Mobile",
+  "version": "1.0.0",
+  "base_url": "https://bxbet.asia",
+
+  "api": {
+    "base_url": "https://bxbet.asia/api",
+    "version": "v1",
+    "timeout": 30000,
+
+    "endpoints": {
+      "auth": {
+        "login": "/login",
+        "logout": "/logout",
+        "register": "/register",
+        "me": "/me",
+        "password_reset": "/password/remind",
+        "api_login": "/player/apilogin/{token}"
+      },
+
+      "games": {
+        "list": "/games",
+        "categories": "/category",
+        "jackpots": "/jackpots",
+        "launch": "/launcher/{game}/{token}"
+      },
+
+      "user": {
+        "profile": "/me",
+        "update_profile": "/me/details",
+        "balance": "/me/balance",
+        "refunds": "/me/refund",
+        "check_online": "/player/isonline"
+      },
+
+      "transactions": {
+        "credits": "/credits",
+        "deposit": "/credits/depositusb",
+        "pending_deposits": "/credits/pending-depositusb"
+      }
+    }
+  },
+
+  "websocket": {
+    "servers": {
+      "slots": {
+        "url": "wss://bxbet.asia:22150/slots",
+        "port": 22150,
+        "path": "/slots",
+        "ssl": true,
+        "description": "Slot games WebSocket server",
+        "ping_interval": 30000
+      },
+
+      "arcade": {
+        "url": "wss://bxbet.asia:22180/arcade",
+        "port": 22180,
+        "path": "/arcade",
+        "ssl": true,
+        "description": "Arcade/Fish games WebSocket server",
+        "ping_interval": 30000,
+        "supported_games": [
+          "BirdHunterVP",
+          "BirdHunter10000VP",
+          "BugsParadise100VP",
+          "BugsParadise10000VP",
+          "BuffaloThunderVP",
+          "FirePhoenixVP"
+        ]
+      },
+
+      "server": {
+        "url": "wss://bxbet.asia:22190/server",
+        "port": 22190,
+        "path": "/server",
+        "ssl": true,
+        "description": "Alternative game server",
+        "ping_interval": 30000
+      }
+    },
+
+    "connection_params": {
+      "upgrade": "websocket",
+      "connection": "Upgrade",
+      "sec_websocket_version": "13",
+      "reconnect_attempts": 5,
+      "reconnect_delay": 3000
+    }
+  },
+
+  "authentication": {
+    "method": "JWT",
+    "token_header": "Authorization",
+    "token_prefix": "Bearer",
+    "token_storage": "secure_storage",
+    "refresh_before_expiry": 300
+  },
+
+  "game_config": {
+    "arcade_config_url": "https://bxbet.asia/arcade_config.json",
+    "socket_config_url": "https://bxbet.asia/socket_config.json",
+    "socket_config2_url": "https://bxbet.asia/socket_config2.json"
+  },
+
+  "security": {
+    "api_key_header": "X-API-Key",
+    "require_ssl": true,
+    "certificate_pinning": false,
+    "allowed_hosts": [
+      "bxbet.asia"
+    ]
+  },
+
+  "features": {
+    "registration_enabled": true,
+    "forgot_password_enabled": true,
+    "email_verification": false,
+    "two_factor_auth": true,
+    "game_categories": true,
+    "jackpot_system": true,
+    "refund_system": true
+  }
+}

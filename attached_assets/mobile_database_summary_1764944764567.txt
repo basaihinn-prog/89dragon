@@ -1,0 +1,164 @@
+========================================
+MOBILE APP DATABASE ACCESS - QUICK REFERENCE
+========================================
+
+✅ YOUR MOBILE APP IS ALREADY CONFIGURED!
+
+The mobile app uses the SAME database as the web application
+through the secure REST API - no additional setup needed.
+
+========================================
+DATABASE DETAILS
+========================================
+
+Database Name: sql_cashout_realconnect_online
+Host: 127.0.0.1 (internal only - not for mobile app)
+Port: 3306
+Table Prefix: w_
+Total Tables: 76
+
+========================================
+HOW MOBILE APP ACCESSES DATABASE
+========================================
+
+Mobile App → REST API → Database
+            ↓
+    JWT Authentication
+    Business Logic
+    Security Validation
+
+❌ NEVER connect mobile app directly to database
+✅ ALWAYS use REST API endpoints
+
+========================================
+API ENDPOINTS (MOBILE APP USES THESE)
+========================================
+
+Authentication:
+  POST /api/login          - Get JWT token
+  POST /api/logout         - Logout
+  GET  /api/me             - Get user profile
+
+Games:
+  GET  /api/games          - List all games
+  GET  /api/category       - Game categories
+  GET  /api/jackpots       - Jackpot info
+
+User Data:
+  POST /api/me/balance     - Get current balance
+  GET  /api/me/refund      - Refund history
+
+Transactions:
+  GET  /api/credits        - Transaction history
+
+========================================
+WEBSOCKET SERVERS (REAL-TIME GAME DATA)
+========================================
+
+Slots:   wss://bxbet.asia:22150/slots
+Arcade:  wss://bxbet.asia:22180/arcade
+Server:  wss://bxbet.asia:22190/server
+
+These connect to database directly for real-time game updates.
+
+========================================
+KEY DATABASE TABLES
+========================================
+
+w_users          - User accounts, balances, authentication
+w_games          - Game catalog (slots, arcade, fish games)
+w_game_log       - Game play history and results
+w_credits        - User transaction history
+w_sessions       - Active user sessions
+w_api_keys       - API keys for mobile app access
+w_game_bank      - Slot game jackpots
+w_fish_bank      - Arcade game jackpots
+
+========================================
+DATA FLOW EXAMPLE
+========================================
+
+1. User Login:
+   Mobile App → POST /api/login
+              → Laravel queries w_users table
+              → Returns JWT token + user data
+              → Mobile app stores token
+
+2. Get Balance:
+   Mobile App → GET /api/me/balance (with JWT token)
+              → Laravel queries w_users.balance
+              → Returns current balance
+
+3. Play Game:
+   Mobile App → WebSocket connect
+              → WebSocket server queries database
+              → Game updates w_game_log, w_users.balance
+              → Real-time updates sent to mobile app
+
+========================================
+SECURITY
+========================================
+
+✅ All API requests require JWT token
+✅ HTTPS encryption for all API calls
+✅ WSS (secure WebSocket) for game connections
+✅ Input validation prevents SQL injection
+✅ No database credentials stored on mobile device
+✅ Rate limiting prevents abuse
+
+========================================
+MOBILE APP API KEYS
+========================================
+
+Production: XwZLCzYHh44zLCQgebMzuOdJdy5Zs8TLETgnmgxKbLI77PhoYL8hg2PYyiO4OVHy
+Development: j5VkzT5A8ikNICicxkTENKC4RAjFZPra0loFFVwYyOQcAyVRxCiRJQzjhE9XPxTl
+Testing: uGsRd4jw5h1aoZ4IAIhcLAD6V8u9ofGEcXcn7Ur7PnqzvFfMsv1S7fcjotpLt3EA
+
+Use in header: X-API-Key: {key}
+Primary auth: Authorization: Bearer {jwt_token}
+
+========================================
+DOCUMENTATION FILES
+========================================
+
+Full API Docs:
+  /www/wwwroot/bxbet.asia/MOBILE_API_DOCUMENTATION.md
+
+Database Guide:
+  /www/wwwroot/bxbet.asia/DATABASE_ACCESS_GUIDE.md
+
+Mobile Config:
+  /www/wwwroot/bxbet.asia/mobile_api_config.json
+
+API Keys:
+  /www/wwwroot/bxbet.asia/mobile_api_keys.json
+
+========================================
+QUICK TEST
+========================================
+
+Test API access:
+
+curl -X POST https://bxbet.asia/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"your_password"}'
+
+Get games list:
+
+curl https://bxbet.asia/api/games \
+  -H "Authorization: Bearer {token_from_login}"
+
+========================================
+SUMMARY
+========================================
+
+✅ Database is already accessible to mobile app via API
+✅ No additional database setup required
+✅ Use REST API for all data operations
+✅ WebSockets for real-time game data
+✅ JWT tokens for authentication
+✅ Same database as web application
+
+Your mobile app is ready to connect! 🎉
+
+========================================

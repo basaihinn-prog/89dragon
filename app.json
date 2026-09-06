@@ -1,0 +1,97 @@
+{
+  "expo": {
+    "name": "Jade Royale",
+    "slug": "jade-royale",
+    "platforms": ["ios", "android", "web"],
+    "version": "2.1.0",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "scheme": "jaderoyale",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jaderoyale.app",
+      "requireFullScreen": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0D0D0D",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.jaderoyale.app",
+      "versionCode": 3,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro",
+      "name": "Jade Royale",
+      "shortName": "Jade Royale",
+      "description": "Premium casino gaming experience",
+      "themeColor": "#0D0D0D",
+      "backgroundColor": "#0D0D0D",
+      "display": "standalone",
+      "orientation": "landscape",
+      "startUrl": "/",
+      "preferRelatedApplications": false
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0D0D0D",
+          "dark": {
+            "backgroundColor": "#0D0D0D"
+          }
+        }
+      ],
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "DEFAULT"
+        }
+      ],
+      "expo-web-browser",
+      "expo-asset",
+      "expo-secure-store",
+      "expo-video",
+      "expo-audio"
+    ],
+    "experiments": {
+      "reactCompiler": true
+    },
+    "extra": {
+      "versionCode": 3,
+      "apiBaseUrl": "https://bxbet.asia/api",
+      "wsBaseUrl": "wss://bxbet.asia",
+      "imageBaseUrl": "https://bxbet.asia",
+      "gameLauncherBaseUrl": "https://bxbet.asia",
+      "apiKey": "XwZLCzYHh44zLCQgebMzuOdJdy5Zs8TLETgnmgxKbLI77PhoYL8hg2PYyiO4OVHy",
+      "eas": {
+        "projectId": "ab571268-159d-4970-913a-65cee09e5cd5"
+      }
+    },
+    "owner": "gorjessbby",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ab571268-159d-4970-913a-65cee09e5cd5"
+    }
+  }
+}

@@ -1,0 +1,168 @@
+  🎡 Progressive Unlock System - Complete Guide
+
+  How It Works
+
+  Flow:
+  1. New users start with only Wheel 1 unlocked
+  2. To unlock Wheel 2, they must land on the "WH" prize on Wheel 1
+  3. To unlock Wheel 3, they must land on the "WH" prize on Wheel 2
+  4. Once all wheels are unlocked, landing on "WH" gives a bonus message
+
+  ---
+  Updated API Response - Config Endpoint
+
+  GET /api/mobile/wheel-fortune/config
+
+  {
+    "enabled": true,
+    "wager": 1,
+    "wheels": {
+      "wheel1": [0, 1, 2, 3, 4, 5, 15],
+      "wheel2": [0, 8, 5, 0, 6, 4, 8, 15],
+      "wheel3": [0, 9, 12, 5, 8, 14, 10, 5, 6, 7, 14, 0, 13, 6, 5, 9]
+    },
+    "unlocked_wheels": [1],           // NEW: Array of unlocked wheel numbers
+    "current_wheel": 1,                // NEW: Highest unlocked wheel
+    "can_unlock_next": true,           // NEW: Can they unlock another wheel?
+    "user_balance": "1000.00",
+    "can_spin": true
+  }
+
+  After unlocking Wheel 2:
+  {
+    "unlocked_wheels": [1, 2],
+    "current_wheel": 2,
+    "can_unlock_next": true
+  }
+
+  After unlocking all wheels:
+  {
+    "unlocked_wheels": [1, 2, 3],
+    "current_wheel": 3,
+    "can_unlock_next": false
+  }
+
+  ---
+  Updated API Response - Spin Endpoint
+
+  POST /api/mobile/wheel-fortune/spin
+
+  Request (Locked Wheel):
+  {
+    "wheel": 2
+  }
+
+  Response (403 Error):
+  {
+    "error": "Wheel 2 is locked. You must unlock it first by winning the WH prize on Wheel 1"
+  }
+
+  ---
+  Request (Unlocked Wheel - Won WH):
+  {
+    "wheel": 1
+  }
+
+  Response (Unlocked Wheel 2):
+  {
+    "success": true,
+    "wheel": 1,
+    "position": 6,
+    "prize": "WH",
+    "prize_amount": 0,
+    "advance_to_next_wheel": true,
+    "wheel_unlocked": 2,               // NEW: Which wheel was just unlocked
+    "unlocked_wheels": [1, 2],         // NEW: All unlocked wheels
+    "message": "Congratulations! You unlocked Wheel 2!",
+    "wager_deducted": "1.00",
+    "new_balance": "999.00"
+  }
+
+  ---
+  Response (Already Unlocked):
+  {
+    "success": true,
+    "wheel": 1,
+    "position": 6,
+    "prize": "WH",
+    "prize_amount": 0,
+    "advance_to_next_wheel": true,
+    "wheel_unlocked": null,            // No new wheel unlocked
+    "unlocked_wheels": [1, 2],
+    "message": "You already have Wheel 2 unlocked!",
+    "wager_deducted": "1.00",
+    "new_balance": "998.00"
+  }
+
+  ---
+  Response (All Wheels Unlocked):
+  {
+    "success": true,
+    "wheel": 3,
+    "position": 10,
+    "prize": "WH",
+    "prize_amount": 0,
+    "advance_to_next_wheel": true,
+    "wheel_unlocked": null,
+    "unlocked_wheels": [1, 2, 3],
+    "message": "You won the bonus prize! All wheels already unlocked.",
+    "wager_deducted": "1.00",
+    "new_balance": "997.00"
+  }
+
+  ---
+  Database Changes
+
+  New Column Added:
+  - Table: w_users
+  - Column: unlocked_wheels (VARCHAR(20), default: '1')
+  - Format: Comma-separated wheel numbers (e.g., "1,2,3")
+
+  ---
+  UI/App Integration Guide
+
+  Step 1: Get Config
+  const config = await fetch('/api/mobile/wheel-fortune/config', {
+    headers: { 'Authorization': 'Bearer ' + token }
+  }).then(r => r.json());
+
+  // Show only unlocked wheels in UI
+  const availableWheels = config.unlocked_wheels; // [1] or [1,2] or [1,2,3]
+  const currentWheel = config.current_wheel;       // 1, 2, or 3
+
+  // Display lock icons for locked wheels
+  if (!availableWheels.includes(2)) {
+    showLockIcon('wheel2');
+  }
+
+  Step 2: Spin Wheel
+  const result = await fetch('/api/mobile/wheel-fortune/spin', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ wheel: currentWheel })
+  }).then(r => r.json());
+
+  // Check if new wheel was unlocked
+  if (result.wheel_unlocked) {
+    showUnlockAnimation(result.wheel_unlocked);
+    enableWheel(result.wheel_unlocked);
+  }
+
+  // Show prize/message
+  showMessage(result.message);
+
+  ---
+  Admin Features
+
+  Reset User's Wheels (via database):
+  -- Reset to Wheel 1 only
+  UPDATE w_users SET unlocked_wheels = '1' WHERE id = {user_id};
+
+  -- Unlock all wheels
+  UPDATE w_users SET unlocked_wheels = '1,2,3' WHERE id = {user_id};
+
+  -- Unlock up to Wheel 2
+  UPDATE w_users SET unlocked_wheels = '1,2' WHERE id = {user_id};

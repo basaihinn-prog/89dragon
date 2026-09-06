@@ -1,0 +1,425 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/contexts/AuthContext";
+import { 
+  fetchGames, 
+  fetchCategories, 
+  getFavorites, 
+  addToFavorites, 
+  removeFromFavorites,
+  Game, 
+  Category 
+} from "@/services/api";
+
+export type CategoryFilter = "slots" | "fish" | "tables" | "favorites" | "bonus";
+
+interface GamesContextType {
+  games: Game[];
+  categories: Category[];
+  favorites: string[];
+  isLoading: boolean;
+  error: string | null;
+  isUsingCache: boolean;
+  selectedCategory: CategoryFilter;
+  setSelectedCategory: (category: CategoryFilter) => void;
+  toggleFavorite: (gameName: string) => Promise<void>;
+  isFavorite: (gameName: string) => boolean;
+  getFilteredGames: () => Game[];
+  refreshGames: () => Promise<void>;
+}
+
+const GamesContext = createContext<GamesContextType | undefined>(undefined);
+
+const FAVORITES_KEY = "favorite_games";
+const GAMES_CACHE_KEY = "cached_games";
+const CATEGORIES_CACHE_KEY = "cached_categories";
+const CACHE_TIMESTAMP_KEY = "games_cache_timestamp";
+
+const FISHING_GAMES: Game[] = [
+  { id: 1, name: "bird_hunter", title: "Bird Hunter", gamebank: "fishing", device: 0, orientation: "landscape" },
+  { id: 2, name: "bugs_paradise_100", title: "Bugs Paradise 100", gamebank: "fishing", device: 0, orientation: "landscape" },
+  { id: 3, name: "spongebob", title: "SpongeBob", gamebank: "fishing", device: 0, orientation: "landscape" },
+  { id: 4, name: "monster_frenzy", title: "Monster Frenzy", gamebank: "fishing", device: 0, orientation: "landscape" },
+  { id: 5, name: "king_kings_rampage", title: "King Kings Rampage", gamebank: "fishing", device: 0, orientation: "landscape" },
+  { id: 6, name: "buffalo_thunder", title: "Buffalo Thunder", gamebank: "fishing", device: 0, orientation: "landscape" },
+  { id: 7, name: "master_of_the_deep", title: "Master of the Deep", gamebank: "fishing", device: 0, orientation: "landscape" },
+  { id: 8, name: "fishermans_wharf", title: "Fisherman's Wharf", gamebank: "fishing", device: 0, orientation: "landscape" },
+];
+
+const SLOT_GAMES: Game[] = [
+  { id: 101, name: "leprechaun_goes_wild", title: "Leprechaun Goes Wild", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 102, name: "hot_spin_deluxe", title: "Hot Spin Deluxe", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 103, name: "wild_ape", title: "Wild Ape", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 104, name: "aztec_gold_megaways", title: "Aztec Gold Megaways", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 105, name: "wild_rubys", title: "Wild Rubys", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 106, name: "wolf_moon_rising", title: "Wolf Moon Rising", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 107, name: "crystal_ball", title: "Crystal Ball", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 108, name: "buffalo_blitz", title: "Buffalo Blitz", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 109, name: "lost_treasure", title: "Lost Treasure", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 110, name: "big_red", title: "Big Red", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 111, name: "choy_sun_doa", title: "Choy Sun Doa", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 112, name: "egg_and_rooster", title: "Egg and Rooster", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 113, name: "dragon_riches", title: "Dragon Riches", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 114, name: "leos_treasures", title: "Leos Treasures", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 115, name: "santa_rudolf", title: "Santa Rudolf", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 116, name: "aztec_gems", title: "Aztec Gems", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 117, name: "jokers_jewels", title: "Jokers Jewels", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 118, name: "lucky_leprechaun", title: "Lucky Leprechaun", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 119, name: "silver_fox", title: "Silver Fox", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 120, name: "bank_raid", title: "Bank Raid", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 121, name: "christmas_big_bass_bonanza", title: "Christmas Big Bass Bonanza", gamebank: "slots", device: 0, orientation: "portrait" },
+  { id: 122, name: "lucky_new_year", title: "Lucky New Year", gamebank: "slots", device: 0, orientation: "portrait" },
+];
+
+const TABLE_GAMES: Game[] = [
+  { id: 201, name: "deuces_wild", title: "Deuces Wild", gamebank: "table", device: 0, orientation: "landscape" },
+  { id: 202, name: "bingo", title: "Bingo", gamebank: "table", device: 0, orientation: "landscape" },
+  { id: 203, name: "all_american", title: "All American", gamebank: "table", device: 0, orientation: "landscape" },
+  { id: 204, name: "last_blast_keno", title: "Last Blast Keno", gamebank: "table", device: 0, orientation: "landscape" },
+  { id: 205, name: "black_jack", title: "Black Jack", gamebank: "table", device: 0, orientation: "landscape" },
+  { id: 206, name: "lucky_keno", title: "Lucky Keno", gamebank: "table", device: 0, orientation: "landscape" },
+  { id: 207, name: "virtual_roulette", title: "Virtual Roulette", gamebank: "table", device: 0, orientation: "landscape" },
+  { id: 208, name: "joker_poker", title: "Joker Poker", gamebank: "table", device: 0, orientation: "landscape" },
+];
+
+const STATIC_GAMES: Game[] = [...FISHING_GAMES, ...SLOT_GAMES, ...TABLE_GAMES];
+
+const BLOCKED_GAME_PATTERNS = [
+  "joker slot",
+  "jokerslot",
+  "tropical vacation",
+  "tropicalvacation",
+  "40 mega slot",
+  "40megaslot",
+  "40_mega_slot",
+  "vacation station",
+  "vacationstation",
+  "vacation_station",
+];
+
+function isBlockedGame(game: Game): boolean {
+  const titleLower = (game.title || "").toLowerCase();
+  const nameLower = (game.name || "").toLowerCase();
+  
+  return BLOCKED_GAME_PATTERNS.some(pattern => 
+    titleLower.includes(pattern) || nameLower.includes(pattern)
+  );
+}
+
+function filterBlockedGames(games: Game[]): Game[] {
+  return games.filter(game => !isBlockedGame(game));
+}
+
+export function GamesProvider({ children }: { children: ReactNode }) {
+  const { token, isAuthenticated } = useAuth();
+  const [games, setGames] = useState<Game[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isUsingCache, setIsUsingCache] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("slots");
+
+  useEffect(() => {
+    loadLocalFavorites();
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      loadGames();
+      syncFavoritesFromAPI();
+    }
+  }, [isAuthenticated, token]);
+
+  async function loadLocalFavorites() {
+    try {
+      const stored = await AsyncStorage.getItem(FAVORITES_KEY);
+      if (stored) {
+        setFavorites(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error("Error loading local favorites:", error);
+    }
+  }
+
+  async function saveLocalFavorites(newFavorites: string[]) {
+    try {
+      await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(newFavorites));
+    } catch (error) {
+      console.error("Error saving local favorites:", error);
+    }
+  }
+
+  async function syncFavoritesFromAPI() {
+    if (!token) return;
+    
+    try {
+      const result = await getFavorites(token);
+      if (result.success && result.data) {
+        const favoriteGames = Array.isArray(result.data) ? result.data : [];
+        const favoriteNames = favoriteGames.map((game: Game) => game.name);
+        setFavorites(favoriteNames);
+        await saveLocalFavorites(favoriteNames);
+      }
+    } catch (error) {
+      console.error("Error syncing favorites from API:", error);
+    }
+  }
+
+  async function saveGamesToCache(gamesData: Game[], categoriesData: Category[]) {
+    try {
+      await AsyncStorage.setItem(GAMES_CACHE_KEY, JSON.stringify(gamesData));
+      await AsyncStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(categoriesData));
+      await AsyncStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+    } catch (error) {
+      console.error("Error saving games to cache:", error);
+    }
+  }
+
+  async function loadGamesFromCache(): Promise<{ games: Game[]; categories: Category[] } | null> {
+    try {
+      const cachedGames = await AsyncStorage.getItem(GAMES_CACHE_KEY);
+      const cachedCategories = await AsyncStorage.getItem(CATEGORIES_CACHE_KEY);
+      
+      if (cachedGames) {
+        const games = JSON.parse(cachedGames);
+        const categories = cachedCategories ? JSON.parse(cachedCategories) : [];
+        return { games, categories };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error loading games from cache:", error);
+      return null;
+    }
+  }
+
+  async function loadGames() {
+    setIsLoading(true);
+    setError(null);
+    setIsUsingCache(false);
+
+    try {
+      // Fetch categories first, then games
+      console.log("Fetching categories first...");
+      const categoriesData = await fetchCategories(token);
+      console.log(`Fetched ${categoriesData.length} categories`);
+      setCategories(categoriesData);
+      
+      console.log("Now fetching games...");
+      const gamesData = await fetchGames(token);
+
+      if (gamesData && gamesData.length > 0) {
+        console.log(`Loaded ${gamesData.length} games from API`);
+        const gamebanks = [...new Set(gamesData.map(g => g.gamebank).filter(Boolean))];
+        console.log("Game banks found:", gamebanks.join(", "));
+        const filteredGames = filterBlockedGames(gamesData);
+        console.log(`Filtered to ${filteredGames.length} games after removing blocked titles`);
+        setGames(filteredGames);
+        setError(null);
+        setIsUsingCache(false);
+        await saveGamesToCache(filteredGames, categoriesData);
+      } else {
+        console.log("No games from API, checking cache...");
+        const cached = await loadGamesFromCache();
+        if (cached && cached.games.length > 0) {
+          console.log(`Using ${cached.games.length} cached games`);
+          setGames(cached.games);
+          setCategories(cached.categories);
+          setIsUsingCache(true);
+        } else {
+          console.log("No cached games available, showing empty state");
+          setGames([]);
+        }
+        setError(null);
+      }
+    } catch (err: any) {
+      const errorMsg = err?.message || "Failed to load games";
+      console.log("API failed:", errorMsg);
+      
+      const cached = await loadGamesFromCache();
+      if (cached && cached.games.length > 0) {
+        console.log(`Using ${cached.games.length} cached games after API failure`);
+        setGames(cached.games);
+        setCategories(cached.categories);
+        setIsUsingCache(true);
+        setError(null);
+      } else {
+        console.log("No cached games available after API failure");
+        setGames([]);
+        setError("Failed to load games. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function refreshGames() {
+    await loadGames();
+    await syncFavoritesFromAPI();
+  }
+
+  const toggleFavorite = useCallback(async (gameName: string) => {
+    const isCurrentlyFavorite = favorites.includes(gameName);
+    
+    const newFavorites = isCurrentlyFavorite
+      ? favorites.filter((name) => name !== gameName)
+      : [...favorites, gameName];
+
+    setFavorites(newFavorites);
+    saveLocalFavorites(newFavorites);
+
+    if (token) {
+      try {
+        if (isCurrentlyFavorite) {
+          await removeFromFavorites(token, gameName);
+        } else {
+          await addToFavorites(token, gameName);
+        }
+      } catch (error) {
+        console.error("Error syncing favorite to API:", error);
+        setFavorites(favorites);
+        saveLocalFavorites(favorites);
+      }
+    }
+  }, [favorites, token]);
+
+  const isFavorite = useCallback((gameName: string): boolean => {
+    return favorites.includes(gameName);
+  }, [favorites]);
+
+  const getFilteredGames = useCallback((): Game[] => {
+    let filtered: Game[] = [];
+    
+    const gameHasCategory = (game: Game, categoryId: number | undefined): boolean => {
+      if (!categoryId) return false;
+      if (game.category_id === categoryId) return true;
+      if (game.categories && Array.isArray(game.categories)) {
+        return game.categories.includes(String(categoryId)) || game.categories.includes(categoryId as any);
+      }
+      return false;
+    };
+    
+    switch (selectedCategory) {
+      case "slots": {
+        const specificSlotGames = [
+          "wildapeisb", "hotspindeluxeisb", "buffaloat", "bigredat", "funkymonkeyjppt",
+          "barsandsevensgt", "cashrunnergt", "starburstnet", "dragons888pm", "aztecgemspm",
+          "jokersjewelpm", "gatesofolympus", "biggerbassbonanza", "clovergold",
+          "dragongift", "wolfmoonrisingbs", "littlerubberduckyspgd", "sevensevensevencq9",
+          "jadeheaven"
+        ];
+        
+        const matchedGames = new Set<string>();
+        filtered = games.filter((game) => {
+          const name = game.name?.toLowerCase() || "";
+          const matches = specificSlotGames.some(sg => name === sg || name.includes(sg));
+          if (matches && !matchedGames.has(name)) {
+            matchedGames.add(name);
+            return true;
+          }
+          return false;
+        });
+        break;
+      }
+      case "fish": {
+        const fishCategory = categories.find(c => 
+          c.slug?.toLowerCase() === "fish" || 
+          c.slug?.toLowerCase() === "fishing" ||
+          c.title?.toLowerCase().includes("fish")
+        );
+        
+        const specificFishGames = [
+          "bugs paradise", "bird hunter", "sponge bob", "buffalo thunder", "master of the deep",
+          "kingkongrampgevp", "fishermans wharf", "fishermanswharf"
+        ];
+        
+        const isFishGame = (game: Game): boolean => {
+          const bank = game.gamebank?.toLowerCase() || "";
+          const title = game.title?.toLowerCase() || "";
+          const name = game.name?.toLowerCase() || "";
+          
+          if (specificFishGames.some(fg => title.includes(fg) || name.includes(fg.replace(/\s+/g, '')))) {
+            return true;
+          }
+          
+          if (bank === "slots" || bank === "slot") return false;
+          
+          return (
+            gameHasCategory(game, fishCategory?.id) ||
+            bank === "fish" ||
+            bank === "fishing" ||
+            bank.includes("fish")
+          );
+        };
+        
+        filtered = games.filter(isFishGame);
+        filtered = filtered.sort((a, b) => (b.view || 0) - (a.view || 0)).slice(0, 8);
+        break;
+      }
+      case "tables": {
+        const specificTableGames = [
+          "blackjackam", "lastblastkenogv", "duckypowerballkenors", "virtualrouletteegt", "bingoam", "deuceswildam"
+        ];
+        
+        filtered = games.filter((game) => {
+          const name = game.name?.toLowerCase() || "";
+          return specificTableGames.some(tg => name.includes(tg) || tg.includes(name));
+        });
+        break;
+      }
+      case "favorites":
+        filtered = games.filter((game) => favorites.includes(game.name));
+        break;
+      case "bonus":
+        filtered = [...games].sort((a, b) => (b.view || 0) - (a.view || 0));
+        break;
+      default:
+        filtered = games;
+    }
+    
+    if (filtered.length === 0 && selectedCategory !== "favorites") {
+      return games;
+    }
+    
+    const seen = new Set<string>();
+    const deduplicated = filtered.filter(game => {
+      const key = game.name.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+    
+    return deduplicated;
+  }, [games, categories, favorites, selectedCategory]);
+
+  return (
+    <GamesContext.Provider
+      value={{
+        games,
+        categories,
+        favorites,
+        isLoading,
+        error,
+        isUsingCache,
+        selectedCategory,
+        setSelectedCategory,
+        toggleFavorite,
+        isFavorite,
+        getFilteredGames,
+        refreshGames,
+      }}
+    >
+      {children}
+    </GamesContext.Provider>
+  );
+}
+
+export function useGames() {
+  const context = useContext(GamesContext);
+  if (context === undefined) {
+    throw new Error("useGames must be used within a GamesProvider");
+  }
+  return context;
+}

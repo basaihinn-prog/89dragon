@@ -1,0 +1,61 @@
+ Swift/iOS
+
+  func activatePinCode(token: String, pinCode: String, completion: @escaping (Result<[String: Any], Error>) 
+  -> Void) {
+      let url = URL(string: "https://bxbet.asia/api/mobile/voucher/activate")!
+      var request = URLRequest(url: url)
+      request.httpMethod = "POST"
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+      let body = ["code": pinCode]
+      request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+      URLSession.shared.dataTask(with: request) { data, response, error in
+          if let error = error {
+              completion(.failure(error))
+              return
+          }
+
+          guard let data = data else { return }
+
+          if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+              if json["success"] as? Bool == true {
+                  completion(.success(json))
+              } else {
+                  let error = NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey:
+  json["error"] as? String ?? "Unknown error"])
+                  completion(.failure(error))
+              }
+          }
+      }.resume()
+  }
+
+  ---
+  🧪 Test the API Now
+
+  # Step 1: Save your token
+  TOKEN="YOUR_JWT_TOKEN_HERE"
+
+  # Step 2: Test with a PIN code
+  curl -X POST https://bxbet.asia/api/mobile/voucher/activate \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"code":"YOUR-PIN-CODE-HERE"}' | jq
+
+  ---
+  📋 Prerequisites
+
+  Before using, ensure:
+
+  1. PIN System Enabled
+  SELECT value FROM w_settings WHERE key = 'payment_pin';
+  -- Must be '1'
+  2. Cashier Shift Open
+  SELECT * FROM w_open_shifts
+  WHERE shop_id = YOUR_SHOP_ID AND end_date IS NULL;
+  3. Shop Has Balance
+  SELECT balance FROM w_shops WHERE id = YOUR_SHOP_ID;
+  4. Valid PIN Code Exists
+  SELECT * FROM pincodes
+  WHERE code = 'XXXX-XXXX...' AND status = 1;

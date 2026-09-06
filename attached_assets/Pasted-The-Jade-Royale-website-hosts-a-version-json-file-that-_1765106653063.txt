@@ -1,0 +1,58 @@
+The Jade Royale website hosts a version.json file that allows the Android app to check for updates automatically.
+
+Update Endpoint
+URL: https://play.jaderoyale.app/version.json
+
+JSON Structure
+The endpoint returns a JSON object with the following fields:
+
+{
+  "versionCode": 1,          // Integer: Increment this for every new release
+  "versionName": "1.0.0",    // String: Display version (e.g. "1.0.0")
+  "downloadUrl": "...",      // String: Direct link to the APK
+  "releaseNotes": "...",     // String: What's new in this update
+  "forceUpdate": false       // Boolean: If true, force user to update
+}
+
+Integration Guide (React Native / Expo)
+Add this logic to your app's main component (e.g., App.js or HomeScreen.js) to check for updates on startup.
+
+import * as Application from 'expo-application';
+import { Linking, Alert } from 'react-native';
+const UPDATE_API_URL = "https://play.jaderoyale.app/version.json";
+async function checkForUpdates() {
+  try {
+    // 1. Fetch latest version info from website
+    const response = await fetch(UPDATE_API_URL);
+    const data = await response.json();
+    // 2. Get current app version (you need to configure this in app.json)
+    // Note: In Expo Go, this might return null or Expo's version.
+    // Use native build version code for accurate checks.
+    const currentVersionCode = 1; // Replace with dynamic check if possible
+    // 3. Compare versions
+    if (data.versionCode > currentVersionCode) {
+      showUpdateDialog(data);
+    }
+  } catch (error) {
+    console.error("Failed to check for updates:", error);
+  }
+}
+function showUpdateDialog(updateData) {
+  Alert.alert(
+    "Update Available",
+    `Version ${updateData.versionName} is available.\n\n${updateData.releaseNotes}`,
+    [
+      {
+        text: "Update Now",
+        onPress: () => Linking.openURL(updateData.downloadUrl)
+      },
+      // Only show "Later" if it's not a forced update
+      !updateData.forceUpdate && {
+        text: "Later",
+        style: "cancel"
+      }
+    ].filter(Boolean)
+  );
+}
+// Call this in useEffect
+// useEffect(() => { checkForUpdates(); }, []);

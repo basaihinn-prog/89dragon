@@ -1,0 +1,105 @@
+● Excellent! I've implemented a comprehensive app version control system. Let me clear the caches and create documentation:
+
+● Bash(php artisan optimize:clear)
+  ⎿     INFO  Clearing cached bootstrap files.                                     
+
+       cache .......................................................... 7.78ms DONE
+     … +5 lines (ctrl+o to expand)
+
+● Perfect! ✅ App Version Control System is now fully implemented!
+
+  What's Been Done
+
+  1. Version 2.0 Configured
+
+  - Added version 2.0 (version_code=2) to database
+  - Set force_update = 1 (blocks login for old versions)
+  - Version 1.0 deactivated
+
+  2. Login Enhanced with Version Check
+
+  - Login now accepts app_version and platform parameters
+  - Blocks authentication if version is outdated and force_update=1
+  - Returns HTTP 426 (Upgrade Required) with update details
+  - Includes version info in successful login response
+
+  3. Existing Update Check API
+
+  Already available: POST /api/mobile/check-update (no auth required)
+
+  How It Works
+
+  Mobile App Login Flow
+
+  Request:
+  POST /api/mobile/login
+  {
+    "username": "player1",
+    "password": "password123",
+    "app_version": 1,
+    "platform": "android"
+  }
+
+  Response if version is outdated:
+  HTTP 426 Upgrade Required
+  {
+    "error": "update_required",
+    "message": "Please update your app to the latest version to continue.",
+    "update_info": {
+      "current_version": 1,
+      "latest_version": "2.0.0",
+      "version_code": 2,
+      "download_url": "https://bxbet.asia/downloads/app-v2.0.0.apk",
+      "release_notes": "New version with enhanced features and security improvements",
+      "force_update": true
+    }
+  }
+
+  Response if version is current:
+  HTTP 200 OK
+  {
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+    "app_version": {
+      "current_version": 2,
+      "latest_version": 2,
+      "latest_version_name": "2.0.0",
+      "update_available": false,
+      "force_update": false
+    }
+  }
+
+  Managing Versions
+
+  To Release a New Version (e.g., 3.0):
+
+  -- Deactivate all old versions
+  UPDATE w_app_versions SET is_active = 0;
+
+  -- Add new version
+  INSERT INTO w_app_versions
+  (platform, version_code, version_name, download_url, force_update, release_notes, is_active, created_at, updated_at)
+  VALUES
+  ('android', 3, '3.0.0', 'https://bxbet.asia/downloads/app-v3.0.0.apk',
+   1, 'Major update with new features', 1, NOW(), NOW());
+
+  To Allow Optional Update (don't force):
+
+  UPDATE w_app_versions SET force_update = 0 WHERE version_code = 2;
+
+  API Endpoints Summary
+
+  1. POST /api/mobile/login - Checks version during authentication
+    - Parameters: username, password, app_version, platform
+    - Blocks login if outdated + force_update=true
+  2. POST /api/mobile/check-update - Check for updates (no auth)
+    - Parameters: version_code, platform
+    - Returns update availability info
+
+  Current Status
+
+  ✅ Version 2.0 is active with force_update enabled
+  ✅ Any app with version < 2 will be blocked from login
+  ✅ Update notification system ready
+  ✅ Login response includes version info
+
+  Users with version 1.0 or lower will now be forced to update before they can log in!

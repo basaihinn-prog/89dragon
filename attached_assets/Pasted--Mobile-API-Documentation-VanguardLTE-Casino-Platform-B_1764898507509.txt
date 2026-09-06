@@ -1,0 +1,107 @@
+# Mobile API Documentation
+## VanguardLTE Casino Platform
+
+**Base URL:** `https://bxbet.asia`
+**API Version:** v1
+**Generated:** <?php echo date('Y-m-d H:i:s'); ?>
+
+---
+
+## 📱 Quick Start
+
+### 1. Authentication Flow
+
+```javascript
+// Login to get JWT token
+const response = await fetch('https://bxbet.asia/api/login&#39;, {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'Accept': 'application/json'
+},
+body: JSON.stringify({
+username: 'player1',
+password: 'password123'
+})
+});
+
+const data = await response.json();
+const jwtToken = data.token;
+
+// Store token securely
+localStorage.setItem('jwt_token', jwtToken);
+```
+
+### 2. Making API Requests
+
+```javascript
+// Get user profile
+const profile = await fetch('https://bxbet.asia/api/me&#39;, {
+headers: {
+'Authorization': `Bearer ${jwtToken}`,
+'Accept': 'application/json'
+}
+});
+
+// Get games list
+const games = await fetch('https://bxbet.asia/api/games&#39;, {
+headers: {
+'Authorization': `Bearer ${jwtToken}`,
+'Accept': 'application/json'
+}
+});
+```
+
+### 3. WebSocket Connection
+
+```javascript
+// Connect to Arcade games WebSocket
+const ws = new WebSocket('wss://bxbet.asia:22180/arcade');
+
+ws.onopen = () => {
+console.log('WebSocket connected');
+
+// Authenticate
+ws.send(JSON.stringify({
+command: 'CheckAuth'
+}));
+};
+
+ws.onmessage = (event) => {
+const data = JSON.parse(event.data);
+console.log('Received:', data);
+};
+
+ws.onerror = (error) => {
+console.error('WebSocket error:', error);
+};
+
+ws.onclose = () => {
+console.log('WebSocket disconnected');
+};
+```
+
+---
+
+## 🔐 API Keys
+
+### Generated API Keys
+
+**Production:**
+```
+XwZLCzYHh44zLCQgebMzuOdJdy5Zs8TLETgnmgxKbLI77PhoYL8hg2PYyiO4OVHy
+```
+
+**Development:**
+```
+j5VkzT5A8ikNICicxkTENKC4RAjFZPra0loFFVwYyOQcAyVRxCiRJQzjhE9XPxTl
+```
+
+**Testing:**
+```
+uGsRd4jw5h1aoZ4IAIhcLAD6V8u9ofGEcXcn7Ur7PnqzvFfMsv1S7fcjotpLt3EA
+```
+
+### Usage
+
+Include API

@@ -1,0 +1,50 @@
+{
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://bxbet.asia/api",
+        "EXPO_PUBLIC_WS_BASE_URL": "wss://bxbet.asia",
+        "EXPO_PUBLIC_IMAGE_BASE_URL": "https://bxbet.asia",
+        "EXPO_PUBLIC_GAME_LAUNCHER_BASE_URL": "https://bxbet.asia"
+      },
+      "channel": "development"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://bxbet.asia/api",
+        "EXPO_PUBLIC_WS_BASE_URL": "wss://bxbet.asia",
+        "EXPO_PUBLIC_IMAGE_BASE_URL": "https://bxbet.asia",
+        "EXPO_PUBLIC_GAME_LAUNCHER_BASE_URL": "https://bxbet.asia"
+      },
+      "channel": "preview"
+    },
+    "production": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://bxbet.asia/api",
+        "EXPO_PUBLIC_WS_BASE_URL": "wss://bxbet.asia",
+        "EXPO_PUBLIC_IMAGE_BASE_URL": "https://bxbet.asia",
+        "EXPO_PUBLIC_GAME_LAUNCHER_BASE_URL": "https://bxbet.asia"
+      },
+      "channel": "production"
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

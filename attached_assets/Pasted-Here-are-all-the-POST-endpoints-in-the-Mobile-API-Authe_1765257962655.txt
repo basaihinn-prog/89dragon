@@ -1,0 +1,62 @@
+Here are all the POST endpoints in the Mobile API:
+
+  Authentication
+
+  - POST /api/mobile/login - User login
+    - Parameters: username, password
+    - Returns: JWT token
+  - POST /api/mobile/logout - User logout
+    - Requires: JWT token
+    - Invalidates current session
+
+  User Account
+
+  - POST /api/mobile/password/change - Change user password
+    - Parameters: old_password, new_password, new_password_confirmation
+    - Requires: Authentication
+
+  Bonuses & Rewards
+
+  - POST /api/mobile/refunds/claim - Claim available refund bonus
+    - Requires: Authentication
+    - Automatically claims eligible refund
+  - POST /api/mobile/voucher/activate - Activate voucher code
+    - Parameters: voucher_code
+    - Requires: Authentication
+  - POST /api/mobile/daily-rewards/claim - Claim daily login reward
+    - Requires: Authentication
+    - Can claim once per 24 hours
+
+  Wheel of Fortune
+
+  - POST /api/mobile/wheel-fortune/spin - Spin the wheel
+    - Parameters: wheel (1, 2, or 3)
+    - Requires: Authentication
+    - Deducts wager, awards prize or unlocks next wheel
+
+  Financial Transactions
+
+  - POST /api/mobile/withdraw/request - Request withdrawal
+    - Parameters: amount, method, etc.
+    - Requires: Authentication
+    - See WITHDRAW_API_DOCUMENTATION.md for details
+  - POST /api/mobile/deposit/initiate - Initiate deposit
+    - Parameters: amount, payment_method
+    - Requires: Authentication
+
+  Favorites & Notifications
+
+  - POST /api/mobile/favorites/add/{game} - Add game to favorites
+    - Parameters: {game} = game ID in URL
+    - Requires: Authentication
+  - POST /api/mobile/notifications/read/{id} - Mark notification as read
+    - Parameters: {id} = notification ID in URL
+    - Requires: Authentication
+
+  App Management
+
+  - POST /api/mobile/check-update - Check for app updates
+    - Parameters: version, platform
+    - No authentication required (runs before login)
+
+  All endpoints except /check-update require JWT authentication via the Authorization: Bearer {token} header.

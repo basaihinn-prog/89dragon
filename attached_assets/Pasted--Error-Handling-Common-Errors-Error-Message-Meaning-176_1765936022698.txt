@@ -1,0 +1,64 @@
+ ❌ Error Handling
+
+  Common Errors
+
+  | Error Message                                      | Meaning               | Solution                |
+  |----------------------------------------------------|-----------------------|-------------------------|
+  | Authentication required                            | No token provided     | Login first             |
+  | Only regular users can activate vouchers           | Admin/cashier account | Use player account      |
+  | PIN code system is not available                   | System disabled       | Contact admin to enable |
+  | PIN code not found or does not belong to your shop | Invalid code          | Check code format       |
+  | This PIN code has already been used                | Code used before      | Get new code            |
+  | Cashier shift is not open                          | No active shift       | Contact support         |
+  | Insufficient shop balance                          | Shop low on funds     | Contact support         |
+  | Failed to activate PIN code                        | System error          | Check logs, retry       |
+
+  Error Response Format
+
+  {
+    "error": "This PIN code has already been used"
+  }
+
+  ---
+  🎨 Sample UI Flow
+
+  1. PIN Entry Screen
+
+  ┌─────────────────────────────┐
+  │   Activate PIN Code         │
+  ├─────────────────────────────┤
+  │                             │
+  │  Enter PIN Code:            │
+  │  ┌─────────────────────┐   │
+  │  │ ABCD-1234-EFGH-...  │   │
+  │  └─────────────────────┘   │
+  │                             │
+  │  [Scan QR Code]             │
+  │                             │
+  │  Current Balance: $100.00   │
+  │                             │
+  │  ┌─────────────────────┐   │
+  │  │   ACTIVATE CODE     │   │
+  │  └─────────────────────┘   │
+  │                             │
+  └─────────────────────────────┘
+
+  2. Success Screen
+
+  ┌─────────────────────────────┐
+  │   ✅ Success!               │
+  ├─────────────────────────────┤
+  │                             │
+  │  💰 Deposited: $50.00       │
+  │  🎁 Bonus: $2.50            │
+  │                             │
+  │  Old Balance: $100.00       │
+  │  New Balance: $152.50       │
+  │                             │
+  │  ┌─────────────────────┐   │
+  │  │   PLAY GAMES        │   │
+  │  └─────────────────────┘   │
+  │                             │
+  │  [View Transaction]         │
+  │                             │
+  └─────────────────────────────┘

@@ -1,0 +1,108 @@
+entrypoint = "README.md"
+modules = ["nodejs-22"]
+
+[nix]
+channel = "stable-24_05"
+packages = ["jq"]
+
+[[ports]]
+localPort = 3001
+externalPort = 3002
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 8082
+externalPort = 3000
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "EAS Init"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx eas init"
+
+[[workflows.workflow]]
+name = "EAS Update"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx eas update --auto"
+
+[[workflows.workflow]]
+name = "EAS Publish Preview iOS"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx eas build --platform ios --profile preview"
+
+[[workflows.workflow]]
+name = "EAS Publish Preview Android"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx eas build --platform android --profile preview"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd web && node serve.cjs"
+waitForPort = 5000
+
+[agent]
+stack = "BEST_EFFORT_FALLBACK"
+integrations = ["stripe:2.0.0"]
+expertMode = true
+
+[deployment]
+deploymentTarget = "static"
+publicDir = "static-build"
+build = ["node", "scripts/build.js"]
+
+# Expo manifest headers
+[[deployment.responseHeaders]]
+path = "/*"
+name = "expo-protocol-version"
+value = "1"
+
+[[deployment.responseHeaders]]
+path = "/*"
+name = "expo-sfv-version"
+value = "0"
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_API_KEY = "XwZLCzYHh44zLCQgebMzuOdJdy5Zs8TLETgnmgxKbLI77PhoYL8hg2PYyiO4OVHy"
+EXPO_PUBLIC_API_BASE_URL = "https://bxbet.asia/api"
+EXPO_PUBLIC_WS_BASE_URL = "wss://bxbet.asia"
+EXPO_PUBLIC_IMAGE_BASE_URL = "https://bxbet.asia"
+EXPO_PUBLIC_GAME_LAUNCHER_BASE_URL = "https://bxbet.asia"
