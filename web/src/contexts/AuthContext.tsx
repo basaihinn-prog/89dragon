@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { loginApi, fetchUserProfile, refreshBalance as apiRefreshBalance, setOnUnauthorizedCallback } from '../services/api';
+import { fetchUserProfile, refreshBalance as apiRefreshBalance, setOnUnauthorizedCallback } from '../services/api';
 import { API_BASE_URL, API_KEY as CONFIG_API_KEY } from '../services/config';
 
 export interface User {
@@ -59,65 +59,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [doLogout]);
 
   const login = useCallback(async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    const result = await loginApi(username, password);
-    if (!result.success || !result.data) {
-      return { success: false, error: result.error };
-    }
-    const { token: newToken, user: userData } = result.data;
-    const user: User = {
-      id: userData?.id || 0,
-      user_id: userData?.user_id || userData?.id || 0,
-      shop_id: userData?.shop_id,
-      username: userData?.username || username,
-      email: userData?.email || '',
-      balance: parseFloat(userData?.balance) || 0,
-      api_token: newToken,
-    };
-
-    localStorage.setItem(TOKEN_KEY, newToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    setToken(newToken);
-    setUser(user);
-
-    // Fetch full profile
     try {
-      const profileRes = await fetch(`${API_BASE}/mobile/profile`, {
+      // Use the player/mobile authentication route. The generic /api/login route
+      // belongs to the broader backend auth surface and can resolve the wrong account type.
+      const response = await fetch(`${API_BASE}/mobile/login`, {
+        method: 'POST',
         headers: {
-          Authorization: `Bearer ${newToken}`,
+          'Content-Type': 'application/json',
           Accept: 'application/json',
-          'X-API-Key': API_KEY,
+          ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
         },
+        body: JSON.stringify({ username, password, app_version: 2, platform: 'web' }),
       });
-      if (profileRes.ok) {
-        const pd = await profileRes.json();
-        const pu = pd.user || pd;
-        let avatarUrl = pu.avatar;
-        if (avatarUrl && !avatarUrl.startsWith('http')) {
-          const base = API_BASE.replace('/api', '');
-          avatarUrl = avatarUrl.startsWith('/') ? `${base}${avatarUrl}` : `${base}/${avatarUrl}`;
-        }
-        const updated: User = {
-          ...user,
-          balance: parseFloat(pu.balance) || user.balance,
-          email: pu.email || user.email,
-          avatar: avatarUrl,
-          phone: pu.phone,
-          user_id: pu.user_id || user.user_id,
-          shop_id: pu.shop_id || user.shop_id,
-        };
-        setUser(updated);
-        localStorage.setItem(USER_KEY, JSON.stringify(updated));
-      }
-    } catch {}
 
-    return { success: true };
+      const text = await response.text();
+      let result: any;
+      try {
+        result = JSON.parse(text);
+      } catch {
+        return { success: false, error: 'Invalid server response' };
+      }
+
+      if (!response.ok || !result?.token) {
+        return { success: false, error: result?.message || result?.error || 'Invalid credentials' };
+      }
+
+      const newToken = result.token;
+      const userData = result.user;
+      const user: User = {
+        id: userData?.id || 0,
+        user_id: userData?.user_id || userData?.id || 0,
+        shop_id: userData?.shop_id,
+        username: userData?.username || username,
+        email: userData?.email || '',
+        balance: parseFloat(userData?.balance) || 0,
+        api_token: newToken,
+      };
+
+      localStorage.setItem(TOKEN_KEY, newToken);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      setToken(newToken);
+      setUser(user);
+
+      // Fetch full profile
+      try {
+        const profileRes = await fetch(`${API_BASE}/mobile/profile`, {
+          headers: {
+            Authorization: `Bearer ${newToken}`,
+            Accept: 'application/json',
+            ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
+          },
+        });
+        if (profileRes.ok) {
+          const pd = await profileRes.json();
+          const pu = pd.user || pd;
+          let avatarUrl = pu.avatar;
+          if (avatarUrl && !avatarUrl.startsWith('http')) {
+            const base = API_BASE.replace('/api', '');
+            avatarUrl = avatarUrl.startsWith('/') ? `${base}${avatarUrl}` : `${base}/${avatarUrl}`;
+          }
+          const updated: User = {
+            ...user,
+            balance: parseFloat(pu.balance) || user.balance,
+            email: pu.email || user.email,
+            avatar: avatarUrl,
+            phone: pu.phone,
+            user_id: pu.user_id || user.user_id,
+            shop_id: pu.shop_id || user.shop_id,
+          };
+          setUser(updated);
+          localStorage.setItem(USER_KEY, JSON.stringify(updated));
+        }
+      } catch {}
+
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Unable to connect to server. Please check your connection.' };
+    }
   }, []);
 
   const logout = useCallback(() => {
     if (token) {
-      fetch(`${API_BASE}/logout`, {
+      fetch(`${API_BASE}/mobile/logout`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'X-API-Key': API_KEY },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
+        },
       }).catch(() => {});
     }
     doLogout();

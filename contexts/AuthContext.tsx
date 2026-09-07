@@ -138,7 +138,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const APP_VERSION_CODE = 2;
       const platform = Platform.OS === "ios" ? "ios" : "android";
       
-      const response = await fetch(`${API_BASE_URL}/login`, {
+      // IMPORTANT: Mobile/player authentication must use /api/mobile/login.
+      // /api/login is the generic/backend auth route and can authenticate the wrong account type.
+      const response = await fetch(`${API_BASE_URL}/mobile/login`, {
         method: "POST",
         mode: "cors",
         credentials: "omit",
@@ -251,7 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function logout() {
     try {
       if (token) {
-        await fetch(`${API_BASE_URL}/logout`, {
+        await fetch(`${API_BASE_URL}/mobile/logout`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${token}`,
