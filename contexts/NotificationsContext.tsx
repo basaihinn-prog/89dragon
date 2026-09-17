@@ -5,7 +5,7 @@ import { checkForUpdates, UpdateInfo } from "@/services/updateChecker";
 
 export interface AppNotification {
   id: string;
-  type: "deposit" | "withdrawal" | "bonus" | "spin" | "update" | "dragonEgg" | "system";
+  type: "deposit" | "withdrawal" | "bonus" | "spin" | "update" | "dragonEgg" | "checkin" | "system";
   title: string;
   message: string;
   amount?: number;

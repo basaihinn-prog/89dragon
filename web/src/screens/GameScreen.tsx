@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { Game, getGameLaunchUrlFromGame, launchGame } from '../services/api';
+import type { Game } from '../services/api';
+import { launchGameSession } from '../services/gameApi';
 
 export function GameScreen() {
   const navigate = useNavigate();
@@ -13,36 +14,40 @@ export function GameScreen() {
   const [gameUrl, setGameUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!game || !token) {
-      navigate('/');
+      navigate('/', { replace: true });
       return;
     }
-    loadGame();
-  }, []);
 
-  const loadGame = async () => {
-    if (!game || !token) return;
-    setIsLoading(true);
-    setError(null);
+    const gameName = game.name;
+    const accessToken = token;
+    let cancelled = false;
 
-    try {
-      const result = await launchGame(token, game.name);
-      if (result.success && result.data) {
-        const url = (result.data as any).url || (result.data as any).launcher_url;
-        if (url) {
-          setGameUrl(url);
-          setIsLoading(false);
-          return;
-        }
+    async function loadGame() {
+      setIsLoading(true);
+      setError(null);
+      setGameUrl(null);
+
+      const result = await launchGameSession(accessToken, gameName);
+      if (cancelled) return;
+
+      if (!result.success || !result.data?.url) {
+        setError(result.error || 'Unable to launch this game.');
+        setIsLoading(false);
+        return;
       }
-    } catch {}
 
-    const fallbackUrl = getGameLaunchUrlFromGame(game, token);
-    setGameUrl(fallbackUrl);
-    setIsLoading(false);
-  };
+      setGameUrl(result.data.url);
+    }
+
+    loadGame();
+    return () => {
+      cancelled = true;
+    };
+  }, [game, token, retryCount, navigate]);
 
   const handleBack = async () => {
     await refreshBalance();
@@ -52,85 +57,152 @@ export function GameScreen() {
   if (!game) return null;
 
   return (
-    <div style={{
-      width: '100%', height: '100%',
-      background: '#000',
-      display: 'flex', flexDirection: 'column',
-      position: 'relative',
-    }}>
-      {/* Top overlay bar */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 14px',
-        background: 'linear-gradient(rgba(0,0,0,0.8), transparent)',
-        zIndex: 100,
-      }}>
-        <button
-          onClick={handleBack}
-          style={{
-            width: '40px', height: '40px', borderRadius: '50%',
-            background: 'rgba(0,0,0,0.6)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: '#fff',
-            transition: 'all 0.15s ease',
-          }}
-        >
+    <div style={styles.root}>
+      <div style={styles.topBar}>
+        <button onClick={handleBack} style={styles.iconButton} aria-label="Back">
           <ArrowLeft size={18} />
         </button>
 
-        <div style={{
-          background: 'rgba(0,0,0,0.6)',
-          border: '1px solid rgba(212,175,55,0.3)',
-          borderRadius: '10px', padding: '6px 14px',
-          display: 'flex', alignItems: 'center', gap: '8px',
-        }}>
-          <span style={{ color: '#D4AF37', fontSize: '13px', fontWeight: '700' }}>
-            ${(user?.balance ?? 0).toFixed(2)}
-          </span>
-          <button
-            onClick={() => refreshBalance()}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          >
-            <RefreshCw size={12} color="rgba(212,175,55,0.6)" />
+        <div style={styles.balancePill}>
+          <span style={styles.balanceText}>${(user?.balance ?? 0).toFixed(2)}</span>
+          <button onClick={() => refreshBalance()} style={styles.refreshButton} aria-label="Refresh balance">
+            <RefreshCw size={12} />
           </button>
         </div>
       </div>
 
-      {isLoading ? (
-        <div style={{
-          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexDirection: 'column', gap: '16px',
-        }}>
-          <div style={{
-            width: '48px', height: '48px',
-            border: '3px solid rgba(212,175,55,0.2)', borderTopColor: '#D4AF37',
-            borderRadius: '50%', animation: 'spin 0.8s linear infinite',
-          }} />
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>Loading {game.title}...</p>
-        </div>
-      ) : error ? (
-        <div style={{
-          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexDirection: 'column', gap: '16px', padding: '20px',
-        }}>
-          <p style={{ color: '#FF6B8A', textAlign: 'center' }}>{error}</p>
-          <button onClick={handleBack} style={{
-            background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)',
-            borderRadius: '10px', padding: '10px 20px', color: '#D4AF37', cursor: 'pointer',
-          }}>
+      {error ? (
+        <div style={styles.centered}>
+          <p style={styles.errorText}>{error}</p>
+          <button onClick={() => setRetryCount((value) => value + 1)} style={styles.retryButton}>
+            Try Again
+          </button>
+          <button onClick={handleBack} style={styles.secondaryButton}>
             Go Back
           </button>
         </div>
-      ) : gameUrl ? (
+      ) : !gameUrl ? (
+        <div style={styles.centered}>
+          <div style={styles.spinner} />
+          <p style={styles.loadingText}>Starting {game.title || game.name}…</p>
+        </div>
+      ) : (
         <iframe
           src={gameUrl}
-          style={{ width: '100%', height: '100%', border: 'none', background: '#000' }}
+          style={styles.iframe}
           allow="fullscreen; autoplay; clipboard-write"
-          title={game.title}
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          title={game.title || game.name}
+          onLoad={() => setIsLoading(false)}
         />
+      )}
+
+      {isLoading && gameUrl && !error ? (
+        <div style={styles.loadingOverlay}>
+          <div style={styles.spinner} />
+          <p style={styles.loadingText}>Loading game…</p>
+        </div>
       ) : null}
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  root: {
+    width: '100%',
+    height: '100%',
+    minHeight: '100vh',
+    background: '#000',
+    display: 'flex',
+    flexDirection: 'column',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 14px',
+    background: 'linear-gradient(rgba(0,0,0,0.82), transparent)',
+    zIndex: 100,
+    pointerEvents: 'none',
+  },
+  iconButton: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    border: '1px solid rgba(255,255,255,0.2)',
+    background: 'rgba(0,0,0,0.65)',
+    color: '#fff',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'auto',
+  },
+  balancePill: {
+    background: 'rgba(0,0,0,0.65)',
+    border: '1px solid rgba(212,175,55,0.3)',
+    borderRadius: '10px',
+    padding: '6px 12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    pointerEvents: 'auto',
+  },
+  balanceText: { color: '#D4AF37', fontSize: '13px', fontWeight: 700 },
+  refreshButton: { background: 'none', border: 0, color: '#D4AF37', cursor: 'pointer', padding: 0, display: 'flex' },
+  iframe: { width: '100%', height: '100vh', border: 0, background: '#000' },
+  centered: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'column',
+    gap: '16px',
+    padding: '20px',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: 'rgba(0,0,0,0.92)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'column',
+    gap: '16px',
+    zIndex: 50,
+  },
+  spinner: {
+    width: '48px',
+    height: '48px',
+    border: '3px solid rgba(212,175,55,0.2)',
+    borderTopColor: '#D4AF37',
+    borderRadius: '50%',
+    animation: 'spin 0.8s linear infinite',
+  },
+  loadingText: { color: 'rgba(255,255,255,0.68)', fontSize: '14px' },
+  errorText: { color: '#FF6B8A', textAlign: 'center', maxWidth: '520px' },
+  retryButton: {
+    border: 0,
+    borderRadius: '10px',
+    padding: '10px 20px',
+    background: '#D4AF37',
+    color: '#111',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  secondaryButton: {
+    borderRadius: '10px',
+    padding: '10px 20px',
+    background: 'rgba(212,175,55,0.1)',
+    border: '1px solid rgba(212,175,55,0.3)',
+    color: '#D4AF37',
+    cursor: 'pointer',
+  },
+};

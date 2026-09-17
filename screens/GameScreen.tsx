@@ -1,292 +1,188 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { View, StyleSheet, Pressable, Platform, BackHandler } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { BackHandler, Platform, Pressable, StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import * as ScreenOrientation from "expo-screen-orientation";
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming,
-  withSequence,
-  Easing,
-  FadeIn,
-} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { ThemedText } from "@/components/ThemedText";
 import { useAuth } from "@/contexts/AuthContext";
-import { getGameLaunchUrl } from "@/services/api";
-import { NeonColors, Spacing, BorderRadius, GlassColors } from "@/constants/theme";
+import { launchGameSession } from "@/services/gameApi";
+import { GAME_LAUNCHER_BASE_URL } from "@/services/config";
 import { RootStackParamList } from "@/navigation/RootNavigator";
 
 const LOAD_TIMEOUT_MS = 30000;
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, "Game">;
 
+type LoadError = {
+  message: string;
+  kind: "launch" | "network" | "timeout" | "server";
+};
+
 export default function GameScreen() {
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute<GameScreenRouteProp>();
+  const insets = useSafeAreaInsets();
   const { token, refreshBalance } = useAuth();
-  const webViewRef = useRef<WebView>(null);
-
   const { game } = route.params;
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [errorType, setErrorType] = useState<"timeout" | "network" | "server" | "unknown">("unknown");
-  const [retryCount, setRetryCount] = useState(0);
-  const [gameUrl, setGameUrl] = useState<string | null>(null);
-  const [isFetchingUrl, setIsFetchingUrl] = useState(true);
-  const [loadProgress, setLoadProgress] = useState(0);
+
+  const webViewRef = useRef<WebView>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [gameUrl, setGameUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<LoadError | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  const spinRotation = useSharedValue(0);
-
-  useEffect(() => {
-    spinRotation.value = withRepeat(
-      withTiming(360, { duration: 1500, easing: Easing.linear }),
-      -1,
-      false
-    );
+  const clearLoadTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
   }, []);
 
-  const spinStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spinRotation.value}deg` }],
-  }));
+  const startLoadTimeout = useCallback(() => {
+    clearLoadTimeout();
+    timeoutRef.current = setTimeout(() => {
+      setLoading(false);
+      setError({
+        kind: "timeout",
+        message: "Game is taking too long to load. Please try again.",
+      });
+    }, LOAD_TIMEOUT_MS);
+  }, [clearLoadTimeout]);
 
-  useEffect(() => {
-    if (isLoading && gameUrl && !error) {
-      timeoutRef.current = setTimeout(() => {
-        if (isLoading) {
-          setError("Game is taking too long to load. The server might be busy.");
-          setErrorType("timeout");
-          setIsLoading(false);
-        }
-      }, LOAD_TIMEOUT_MS);
+  const loadLaunchUrl = useCallback(async () => {
+    clearLoadTimeout();
+    setLoading(true);
+    setProgress(0);
+    setError(null);
+    setGameUrl(null);
+
+    if (!token) {
+      setLoading(false);
+      setError({ kind: "launch", message: "Your session has expired. Please sign in again." });
+      return;
     }
 
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+    const result = await launchGameSession(token, game.name);
+    if (!result.success || !result.data?.url) {
+      setLoading(false);
+      setError({ kind: "launch", message: result.error || "Unable to start this game." });
+      return;
+    }
+
+    setGameUrl(result.data.url);
+    startLoadTimeout();
+  }, [clearLoadTimeout, game.name, startLoadTimeout, token]);
+
+  useEffect(() => {
+    loadLaunchUrl();
+    return clearLoadTimeout;
+  }, [loadLaunchUrl, retryCount, clearLoadTimeout]);
+
+  useEffect(() => {
+    const orientation = game.orientation || ((game.gamebank === "slot" || game.gamebank === "slots") ? "portrait" : "landscape");
+
+    const applyOrientation = async () => {
+      try {
+        if (orientation === "portrait") {
+          await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        } else if (orientation === "landscape") {
+          await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+        } else {
+          await ScreenOrientation.unlockAsync();
+        }
+      } catch {}
     };
-  }, [isLoading, gameUrl, error]);
 
-  useEffect(() => {
-    function buildGameUrl() {
-      setIsFetchingUrl(true);
-      setError(null);
-      
-      try {
-        // Priority 1: Use the full launcher_url from API as-is
-        // The launcher_url includes all required query parameters (jwt_token, verify_hash, mobile flags)
-        // DO NOT modify the URL - the server-provided signed URL must be used exactly as received
-        if (game.launcher_url) {
-          let fullUrl = game.launcher_url;
-          
-          // If the URL doesn't start with http, prepend the base URL
-          if (!fullUrl.startsWith('http')) {
-            fullUrl = `https://bxbet.asia${fullUrl.startsWith('/') ? '' : '/'}${fullUrl}`;
-          }
-          
-          // Use the URL as-is - server already provides all required authentication params
-          setGameUrl(fullUrl);
-          setIsFetchingUrl(false);
-          return;
-        }
-        
-        // Priority 2: Fall back to constructing URL from game name (for games without launcher_url)
-        const directUrl = getGameLaunchUrl(game.name, token || "");
-        setGameUrl(directUrl);
-        setIsFetchingUrl(false);
-      } catch (err: any) {
-        console.error(`Error building game URL for ${game.name}:`, err);
-        setError("Failed to load game. Please try again.");
-        setIsFetchingUrl(false);
-      }
-    }
-    
-    buildGameUrl();
-  }, [game, token, retryCount]);
-  
-  const getGameOrientation = (): "portrait" | "landscape" | "both" => {
-    if (game.orientation) {
-      return game.orientation;
-    }
-    if (game.gamebank === "slot" || game.gamebank === "slots") {
-      return "portrait";
-    }
-    return "landscape";
-  };
-  
-  const gameOrientation = getGameOrientation();
-
-  useEffect(() => {
-    async function setOrientation() {
-      try {
-        switch (gameOrientation) {
-          case "portrait":
-            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-            break;
-          case "landscape":
-            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-            break;
-          case "both":
-            await ScreenOrientation.unlockAsync();
-            break;
-        }
-      } catch (e) {
-      }
-    }
-    setOrientation();
-
+    applyOrientation();
     return () => {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
     };
-  }, [gameOrientation]);
+  }, [game.gamebank, game.orientation]);
+
+  const handleBack = useCallback(async () => {
+    clearLoadTimeout();
+    try {
+      await refreshBalance();
+    } finally {
+      navigation.goBack();
+    }
+  }, [clearLoadTimeout, navigation, refreshBalance]);
 
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       handleBack();
       return true;
     });
-
-    return () => backHandler.remove();
-  }, []);
-
-  const handleBack = async () => {
-    try {
-      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-    } catch (e) {}
-    await refreshBalance();
-    navigation.goBack();
-  };
-
-  const handleWebViewError = useCallback((syntheticEvent: any) => {
-    const { nativeEvent } = syntheticEvent || {};
-    const errorCode = nativeEvent?.code;
-    const errorDescription = nativeEvent?.description || "";
-    
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    if (errorCode === -2 || errorDescription.includes("net::ERR_")) {
-      setError("Unable to connect. Please check your internet connection.");
-      setErrorType("network");
-    } else if (errorCode >= 500 || errorDescription.includes("500")) {
-      setError("The game server is temporarily unavailable. Please try again later.");
-      setErrorType("server");
-    } else if (errorCode === -1 || errorDescription.includes("timeout")) {
-      setError("Connection timed out. Please try again.");
-      setErrorType("timeout");
-    } else {
-      setError("Something went wrong loading the game. Please try again.");
-      setErrorType("unknown");
-    }
-    setIsLoading(false);
-  }, []);
-
-  const handleLoadEnd = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    setIsLoading(false);
-    setLoadProgress(100);
-  }, []);
-
-  const handleLoadProgress = useCallback((event: any) => {
-    const progress = event.nativeEvent?.progress ? event.nativeEvent.progress * 100 : 0;
-    setLoadProgress(Math.min(progress, 100));
-  }, []);
+    return () => subscription.remove();
+  }, [handleBack]);
 
   const handleRetry = useCallback(() => {
-    setError(null);
-    setErrorType("unknown");
-    setLoadProgress(0);
-    setIsLoading(true);
-    setRetryCount(c => c + 1);
+    setRetryCount((value) => value + 1);
   }, []);
 
-  const getErrorIcon = () => {
-    switch (errorType) {
-      case "timeout": 
-        return "clock";
-      case "network": 
-        return "wifi-off";
-      case "server": 
-        return "server";
-      case "unknown":
-        return "alert-circle";
-      default: 
-        return "alert-circle";
-    }
-  };
+  const handleHttpError = useCallback((event: any) => {
+    clearLoadTimeout();
+    const status = Number(event?.nativeEvent?.statusCode || 0);
+    setLoading(false);
+    setError({
+      kind: status >= 500 ? "server" : "network",
+      message: status >= 500
+        ? "The game server is temporarily unavailable."
+        : "Unable to load the game. Please check your connection and try again.",
+    });
+  }, [clearLoadTimeout]);
 
-  const getErrorSuggestion = () => {
-    switch (errorType) {
-      case "timeout": 
-        return "Try closing other apps or connecting to a faster network.";
-      case "network": 
-        return "Make sure you're connected to the internet and try again.";
-      case "server": 
-        return "Our servers are experiencing high traffic. Please wait a moment.";
-      case "unknown":
-        return "If this keeps happening, try restarting the app.";
-      default: 
-        return "Please try again or contact support if the issue persists.";
+  const launcherOrigin = (() => {
+    try {
+      return GAME_LAUNCHER_BASE_URL ? new URL(GAME_LAUNCHER_BASE_URL).origin : null;
+    } catch {
+      return null;
     }
-  };
+  })();
+
+  const allowNavigation = useCallback((request: { url: string }) => {
+    const url = request.url;
+    if (url.startsWith("about:") || url.startsWith("data:") || url.startsWith("blob:")) return true;
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "https:" && (!launcherOrigin || parsed.origin === launcherOrigin);
+    } catch {
+      return false;
+    }
+  }, [launcherOrigin]);
 
   if (Platform.OS === "web") {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.container}>
         <StatusBar style="light" />
-        <View style={styles.header}>
-          <Pressable
-            onPress={handleBack}
-            style={({ pressed }) => [
-              styles.backButton,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Feather name="x" size={24} color="#FFFFFF" />
-          </Pressable>
-          <ThemedText style={styles.gameTitle} numberOfLines={1}>
-            {game.title || game.name}
-          </ThemedText>
-        </View>
-        {error ? (
-          <View style={styles.errorContainer}>
-            <Feather name={getErrorIcon() as any} size={40} color={NeonColors.pink} />
-            <ThemedText style={styles.errorTitle}>Oops!</ThemedText>
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
-            <Pressable onPress={handleRetry} style={styles.retryButton}>
-              <ThemedText style={styles.retryButtonText}>Try Again</ThemedText>
-            </Pressable>
-          </View>
-        ) : isFetchingUrl || !gameUrl ? (
-          <View style={styles.loadingOverlay}>
-            <Feather name="loader" size={40} color={NeonColors.green} />
-            <ThemedText style={styles.loadingText}>Connecting to game...</ThemedText>
-          </View>
-        ) : (
-          <View style={{ flex: 1, width: "100%", height: "100%" }}>
+        <GameHeader topInset={insets.top} title={game.title || game.name} onBack={handleBack} />
+        <GameBody
+          loading={loading}
+          progress={progress}
+          error={error}
+          onRetry={handleRetry}
+        >
+          {gameUrl ? (
             <iframe
               src={gameUrl}
-              style={{
-                width: "100%",
-                height: "100%",
-                border: "none",
-                backgroundColor: "#0D0D0D",
-              } as any}
+              title={game.title || game.name}
               allow="autoplay; fullscreen"
               allowFullScreen
+              style={{ width: "100%", height: "100%", border: "none", background: "#0D0D0D" } as any}
+              onLoad={() => {
+                clearLoadTimeout();
+                setLoading(false);
+                setProgress(100);
+              }}
             />
-          </View>
-        )}
+          ) : null}
+        </GameBody>
       </View>
     );
   }
@@ -294,287 +190,121 @@ export default function GameScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" hidden />
-      
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
-        <Pressable
-          onPress={handleBack}
-          style={({ pressed }) => [
-            styles.backButton,
-            { opacity: pressed ? 0.6 : 1 },
-          ]}
-        >
-          <Feather name="x" size={24} color="#FFFFFF" />
-        </Pressable>
-        <ThemedText style={styles.gameTitle} numberOfLines={1}>
-          {game.title || game.name}
-        </ThemedText>
-      </View>
-
-      {error ? (
-        <Animated.View entering={FadeIn.duration(300)} style={styles.errorContainer}>
-          <View style={styles.errorIconContainer}>
-            <Feather name={getErrorIcon() as any} size={40} color={NeonColors.pink} />
-          </View>
-          <ThemedText style={styles.errorTitle}>Oops!</ThemedText>
-          <ThemedText style={styles.errorText}>{error}</ThemedText>
-          <ThemedText style={styles.errorSuggestion}>{getErrorSuggestion()}</ThemedText>
-          <View style={styles.errorButtonsRow}>
-            <Pressable
-              onPress={handleRetry}
-              style={({ pressed }) => [
-                styles.retryButton,
-                { opacity: pressed ? 0.8 : 1 },
-              ]}
-            >
-              <Feather name="refresh-cw" size={18} color="#0D0D0D" style={styles.buttonIcon} />
-              <ThemedText style={styles.retryButtonText}>Try Again</ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={handleBack}
-              style={({ pressed }) => [
-                styles.backButtonSecondary,
-                { opacity: pressed ? 0.8 : 1 },
-              ]}
-            >
-              <ThemedText style={styles.backButtonText}>Go Back</ThemedText>
-            </Pressable>
-          </View>
-          {retryCount > 0 ? (
-            <ThemedText style={styles.retryCountText}>
-              Attempt {retryCount + 1}
-            </ThemedText>
-          ) : null}
-        </Animated.View>
-      ) : isFetchingUrl || !gameUrl ? (
-        <View style={styles.loadingOverlay}>
-          <Animated.View style={[styles.spinnerContainer, spinStyle]}>
-            <Feather name="loader" size={40} color={NeonColors.green} />
-          </Animated.View>
-          <ThemedText style={styles.loadingText}>Connecting to game...</ThemedText>
-        </View>
-      ) : (
-        <>
+      <GameHeader topInset={insets.top} title={game.title || game.name} onBack={handleBack} />
+      <GameBody loading={loading} progress={progress} error={error} onRetry={handleRetry}>
+        {gameUrl ? (
           <WebView
-            key={`${retryCount}-${gameUrl}`}
+            key={`${game.name}-${retryCount}-${gameUrl}`}
             ref={webViewRef}
             source={{ uri: gameUrl }}
             style={styles.webView}
-            onLoadStart={() => setIsLoading(true)}
-            onLoadEnd={handleLoadEnd}
-            onLoadProgress={handleLoadProgress}
-            onError={handleWebViewError}
-            onHttpError={handleWebViewError}
             javaScriptEnabled
             domStorageEnabled
             allowsInlineMediaPlayback
             mediaPlaybackRequiresUserAction={false}
-            startInLoadingState
-            renderLoading={() => <View />}
-            originWhitelist={["*"]}
             setSupportMultipleWindows={false}
-            onShouldStartLoadWithRequest={(request) => {
-              const { url } = request;
-              if (url.startsWith("https://bxbet.asia") || 
-                  url.startsWith("http://bxbet.asia") ||
-                  url.startsWith("wss://bxbet.asia") ||
-                  url.startsWith("ws://bxbet.asia") ||
-                  url.startsWith("about:blank") ||
-                  url.startsWith("data:") ||
-                  url.startsWith("blob:")) {
-                return true;
-              }
-              return false;
+            originWhitelist={["https://*", "about:*", "data:*", "blob:*"]}
+            onShouldStartLoadWithRequest={allowNavigation}
+            onLoadStart={() => {
+              setLoading(true);
+              startLoadTimeout();
             }}
+            onLoadProgress={(event) => setProgress(Math.round((event.nativeEvent?.progress || 0) * 100))}
+            onLoadEnd={() => {
+              clearLoadTimeout();
+              setLoading(false);
+              setProgress(100);
+            }}
+            onError={handleHttpError}
+            onHttpError={handleHttpError}
           />
-          {isLoading ? (
-            <View style={styles.loadingOverlay}>
-              <Animated.View style={[styles.spinnerContainer, spinStyle]}>
-                <Feather name="loader" size={40} color={NeonColors.green} />
-              </Animated.View>
-              <ThemedText style={styles.loadingText}>Loading game...</ThemedText>
-              <View style={styles.progressContainer}>
-                <View style={[styles.progressBar, { width: `${loadProgress}%` }]} />
-              </View>
-              <ThemedText style={styles.progressText}>{Math.round(loadProgress)}%</ThemedText>
-            </View>
-          ) : null}
-        </>
-      )}
+        ) : null}
+      </GameBody>
+    </View>
+  );
+}
+
+function GameHeader({ topInset, title, onBack }: { topInset: number; title: string; onBack: () => void }) {
+  return (
+    <View style={[styles.header, { paddingTop: topInset + 6 }]}>
+      <Pressable onPress={onBack} style={styles.backButton}>
+        <Feather name="x" size={22} color="#FFFFFF" />
+      </Pressable>
+      <ThemedText style={styles.title} numberOfLines={1}>{title}</ThemedText>
+      <View style={styles.headerSpacer} />
+    </View>
+  );
+}
+
+function GameBody({
+  loading,
+  progress,
+  error,
+  onRetry,
+  children,
+}: {
+  loading: boolean;
+  progress: number;
+  error: LoadError | null;
+  onRetry: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.body}>
+      {children}
+      {error ? (
+        <View style={styles.overlay}>
+          <Feather name={error.kind === "timeout" ? "clock" : error.kind === "server" ? "server" : "alert-circle"} size={42} color="#ff5b8f" />
+          <ThemedText style={styles.errorTitle}>Unable to open game</ThemedText>
+          <ThemedText style={styles.errorText}>{error.message}</ThemedText>
+          <Pressable onPress={onRetry} style={styles.retryButton}>
+            <ThemedText style={styles.retryText}>Try Again</ThemedText>
+          </Pressable>
+        </View>
+      ) : loading ? (
+        <View style={styles.overlay}>
+          <Feather name="loader" size={38} color="#D4AF37" />
+          <ThemedText style={styles.loadingText}>Loading game… {Math.max(0, Math.min(progress, 100))}%</ThemedText>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0D0D0D",
-  },
+  container: { flex: 1, backgroundColor: "#0D0D0D" },
+  body: { flex: 1, backgroundColor: "#0D0D0D" },
+  webView: { flex: 1, backgroundColor: "#0D0D0D" },
   header: {
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-    backgroundColor: GlassColors.darkGlass,
-    zIndex: 10,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    backgroundColor: "rgba(13,13,13,0.96)",
+    zIndex: 20,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: BorderRadius.full,
-    backgroundColor: GlassColors.cardGlass,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
-  gameTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginHorizontal: Spacing.md,
-    textAlign: "center",
-  },
-  webView: {
-    flex: 1,
-    backgroundColor: "#0D0D0D",
-  },
-  loadingOverlay: {
+  headerSpacer: { width: 40 },
+  title: { flex: 1, textAlign: "center", color: "#FFFFFF", fontSize: 16, fontWeight: "600", marginHorizontal: 10 },
+  overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(13, 13, 13, 0.95)",
     alignItems: "center",
     justifyContent: "center",
+    padding: 24,
+    backgroundColor: "rgba(13,13,13,0.97)",
+    gap: 14,
   },
-  spinnerContainer: {
-    width: 60,
-    height: 60,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingText: {
-    marginTop: Spacing.lg,
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 14,
-  },
-  progressContainer: {
-    width: 200,
-    height: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 2,
-    marginTop: Spacing.md,
-    overflow: "hidden",
-  },
-  progressBar: {
-    height: "100%",
-    backgroundColor: NeonColors.green,
-    borderRadius: 2,
-  },
-  progressText: {
-    color: NeonColors.green,
-    fontSize: 12,
-    marginTop: Spacing.xs,
-    fontWeight: "600",
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: Spacing.xl,
-  },
-  errorIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(236, 72, 153, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.md,
-  },
-  errorTitle: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "800",
-    marginBottom: Spacing.sm,
-  },
-  errorText: {
-    color: NeonColors.pink,
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: Spacing.sm,
-    maxWidth: 300,
-  },
-  errorSuggestion: {
-    color: "rgba(255, 255, 255, 0.5)",
-    fontSize: 13,
-    textAlign: "center",
-    marginBottom: Spacing.xl,
-    maxWidth: 280,
-  },
-  errorButtonsRow: {
-    flexDirection: "row",
-    gap: Spacing.md,
-  },
-  retryButton: {
-    backgroundColor: NeonColors.green,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  buttonIcon: {
-    marginRight: Spacing.xs,
-  },
-  retryButtonText: {
-    color: "#0D0D0D",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  retryCountText: {
-    color: "rgba(255, 255, 255, 0.4)",
-    fontSize: 11,
-    marginTop: Spacing.lg,
-  },
-  backButtonSecondary: {
-    backgroundColor: GlassColors.cardGlass,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  backButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  webFallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: Spacing.xl,
-  },
-  webFallbackTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
-  },
-  webFallbackText: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.6)",
-    textAlign: "center",
-    marginBottom: Spacing.xl,
-  },
-  returnButton: {
-    backgroundColor: NeonColors.purple,
-    paddingHorizontal: Spacing["2xl"],
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-  },
-  returnButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 16,
-  },
+  loadingText: { color: "#FFFFFF", fontSize: 14 },
+  errorTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "700" },
+  errorText: { color: "rgba(255,255,255,0.75)", fontSize: 14, textAlign: "center", maxWidth: 420 },
+  retryButton: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 10, backgroundColor: "#D4AF37" },
+  retryText: { color: "#0D0D0D", fontWeight: "700" },
 });
