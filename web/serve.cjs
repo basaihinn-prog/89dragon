@@ -1,24 +1,34 @@
 const express = require('express');
 const path = require('path');
-const http = require('http');
+const fs = require('fs');
 
 const app = express();
+const port = Number(process.env.PORT || 5000);
+const distDir = path.join(__dirname, 'dist');
+const indexHtml = path.join(distDir, 'index.html');
 
+if (!fs.existsSync(indexHtml)) {
+  console.error('Web build is missing. Run `npm run build` in web/ before starting the server.');
+  process.exit(1);
+}
+
+app.disable('x-powered-by');
 app.use((req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), geolocation=()');
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(distDir, {
+  maxAge: '1d',
+  etag: true,
+}));
 
 app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  res.sendFile(indexHtml);
 });
 
-http.createServer(app).listen(5000, '0.0.0.0', () => {
-  console.log('Jade Royale on http://0.0.0.0:5000');
-});
-
-http.createServer(app).listen(8081, '0.0.0.0', () => {
-  console.log('Jade Royale on http://0.0.0.0:8081');
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Jade Royale web app listening on port ${port}`);
 });
