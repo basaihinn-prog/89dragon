@@ -5,7 +5,7 @@ import { checkForUpdates, UpdateInfo } from "@/services/updateChecker";
 
 export interface AppNotification {
   id: string;
-  type: "deposit" | "withdrawal" | "bonus" | "spin" | "update" | "dragonEgg" | "system";
+  type: "deposit" | "withdrawal" | "bonus" | "spin" | "update" | "dragonEgg" | "checkin" | "system";
   title: string;
   message: string;
   amount?: number;
@@ -59,11 +59,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (token) {
       checkForAppUpdate();
-      
       const interval = setInterval(() => {
         checkForAppUpdate();
       }, UPDATE_CHECK_INTERVAL);
-      
       return () => clearInterval(interval);
     }
   }, [token]);
@@ -84,222 +82,155 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const saveNotifications = async (newNotifications: AppNotification[]) => {
+  const saveNotifications = async (items: AppNotification[]) => {
     try {
-      await AsyncStorage.setItem(
-        NOTIFICATIONS_STORAGE_KEY,
-        JSON.stringify(newNotifications)
-      );
+      await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(items));
     } catch (error) {
       console.error("[Notifications] Error saving notifications:", error);
     }
   };
 
-  const showModal = useCallback(() => {
-    setIsModalVisible(true);
+  const addNotification = useCallback((notification: Omit<AppNotification, "id" | "read" | "createdAt">) => {
+    setNotifications((prev) => {
+      const next = [
+        {
+          ...notification,
+          id: generateId(),
+          read: false,
+          createdAt: Date.now(),
+        },
+        ...prev,
+      ].slice(0, 100);
+      saveNotifications(next);
+      return next;
+    });
   }, []);
-
-  const hideModal = useCallback(() => {
-    setIsModalVisible(false);
-  }, []);
-
-  const addNotification = useCallback(
-    (notification: Omit<AppNotification, "id" | "read" | "createdAt">) => {
-      const newNotification: AppNotification = {
-        ...notification,
-        id: generateId(),
-        read: false,
-        createdAt: Date.now(),
-      };
-
-      setNotifications((prev) => {
-        const updated = [newNotification, ...prev].slice(0, 50);
-        saveNotifications(updated);
-        return updated;
-      });
-    },
-    []
-  );
 
   const markAsRead = useCallback((id: string) => {
     setNotifications((prev) => {
-      const updated = prev.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      );
-      saveNotifications(updated);
-      return updated;
+      const next = prev.map((item) => item.id === id ? { ...item, read: true } : item);
+      saveNotifications(next);
+      return next;
     });
   }, []);
 
   const markAllAsRead = useCallback(() => {
     setNotifications((prev) => {
-      const updated = prev.map((n) => ({ ...n, read: true }));
-      saveNotifications(updated);
-      return updated;
+      const next = prev.map((item) => ({ ...item, read: true }));
+      saveNotifications(next);
+      return next;
     });
   }, []);
 
   const deleteNotification = useCallback((id: string) => {
     setNotifications((prev) => {
-      const updated = prev.filter((n) => n.id !== id);
-      saveNotifications(updated);
-      return updated;
+      const next = prev.filter((item) => item.id !== id);
+      saveNotifications(next);
+      return next;
     });
   }, []);
 
   const clearAllNotifications = useCallback(() => {
     setNotifications([]);
-    saveNotifications([]);
+    AsyncStorage.removeItem(NOTIFICATIONS_STORAGE_KEY).catch(() => {});
   }, []);
 
-  const notifyDeposit = useCallback(
-    (amount: number, status: "success" | "pending" | "failed") => {
-      const statusText = status === "success" ? "completed" : status === "pending" ? "pending" : "failed";
-      const title = status === "success" ? "Deposit Confirmed" : status === "pending" ? "Deposit Processing" : "Deposit Failed";
-      const message =
-        status === "success"
-          ? `Your deposit of $${amount.toFixed(2)} has been added to your balance.`
-          : status === "pending"
-          ? `Your deposit of $${amount.toFixed(2)} is being processed.`
-          : `Your deposit of $${amount.toFixed(2)} could not be completed.`;
+  const notifyDeposit = useCallback((amount: number, status: "success" | "pending" | "failed") => {
+    addNotification({
+      type: "deposit",
+      title: status === "success" ? "Deposit Complete" : status === "pending" ? "Deposit Pending" : "Deposit Failed",
+      message: `Deposit ${status}: ${amount.toFixed(2)}`,
+      amount,
+      status,
+    });
+  }, [addNotification]);
 
-      addNotification({
-        type: "deposit",
-        title,
-        message,
-        amount,
-        status,
-      });
-    },
-    [addNotification]
-  );
+  const notifyWithdrawal = useCallback((amount: number, status: "success" | "pending" | "failed") => {
+    addNotification({
+      type: "withdrawal",
+      title: status === "success" ? "Withdrawal Complete" : status === "pending" ? "Withdrawal Pending" : "Withdrawal Failed",
+      message: `Withdrawal ${status}: ${amount.toFixed(2)}`,
+      amount,
+      status,
+    });
+  }, [addNotification]);
 
-  const notifyWithdrawal = useCallback(
-    (amount: number, status: "success" | "pending" | "failed") => {
-      const title =
-        status === "success"
-          ? "Withdrawal Complete"
-          : status === "pending"
-          ? "Withdrawal Requested"
-          : "Withdrawal Failed";
-      const message =
-        status === "success"
-          ? `$${amount.toFixed(2)} has been sent to your PayPal.`
-          : status === "pending"
-          ? `Your withdrawal of $${amount.toFixed(2)} is being processed.`
-          : `Your withdrawal of $${amount.toFixed(2)} could not be completed.`;
+  const notifyBonus = useCallback((type: string, amount: number) => {
+    addNotification({
+      type: "bonus",
+      title: "Bonus Received",
+      message: `${type}: ${amount.toFixed(2)}`,
+      amount,
+      status: "success",
+    });
+  }, [addNotification]);
 
-      addNotification({
-        type: "withdrawal",
-        title,
-        message,
-        amount,
-        status,
-      });
-    },
-    [addNotification]
-  );
+  const notifySpinResult = useCallback((prize: string, amount: number) => {
+    addNotification({
+      type: "spin",
+      title: "Spin Result",
+      message: prize,
+      amount,
+      status: "success",
+    });
+  }, [addNotification]);
 
-  const notifyBonus = useCallback(
-    (type: string, amount: number) => {
-      addNotification({
-        type: "bonus",
-        title: "Bonus Credited",
-        message: `You received $${amount.toFixed(2)} from ${type}!`,
-        amount,
-        status: "success",
-      });
-    },
-    [addNotification]
-  );
-
-  const notifySpinResult = useCallback(
-    (prize: string, amount: number) => {
-      addNotification({
-        type: "spin",
-        title: "Spin Wheel Winner",
-        message: `Congratulations! You won ${prize} ($${amount.toFixed(2)}) on the wheel!`,
-        amount,
-        status: "success",
-      });
-    },
-    [addNotification]
-  );
-
-  const notifyDragonEgg = useCallback(
-    (day: number, amount: number) => {
-      addNotification({
-        type: "dragonEgg",
-        title: "Dragon Egg Bonus",
-        message: `Day ${day} reward: $${amount.toFixed(2)} hatched from your Dragon Egg!`,
-        amount,
-        status: "success",
-      });
-    },
-    [addNotification]
-  );
+  const notifyDragonEgg = useCallback((day: number, amount: number) => {
+    addNotification({
+      type: "dragonEgg",
+      title: "Dragon Egg Bonus",
+      message: `Day ${day} reward: ${amount.toFixed(2)}`,
+      amount,
+      status: "success",
+    });
+  }, [addNotification]);
 
   const checkForAppUpdate = useCallback(async () => {
     try {
-      const lastCheck = await AsyncStorage.getItem(LAST_UPDATE_CHECK_KEY);
-      const now = Date.now();
+      const lastCheckRaw = await AsyncStorage.getItem(LAST_UPDATE_CHECK_KEY);
+      const lastCheck = Number(lastCheckRaw || 0);
+      if (Date.now() - lastCheck < UPDATE_CHECK_INTERVAL) return;
 
-      if (lastCheck) {
-        const timeSinceLastCheck = now - parseInt(lastCheck, 10);
-        if (timeSinceLastCheck < UPDATE_CHECK_INTERVAL) {
-          return;
-        }
-      }
+      await AsyncStorage.setItem(LAST_UPDATE_CHECK_KEY, String(Date.now()));
+      const info: UpdateInfo = await checkForUpdates();
+      if (!info?.updateAvailable) return;
 
-      await AsyncStorage.setItem(LAST_UPDATE_CHECK_KEY, now.toString());
+      const versionKey = String(info.latestVersion || info.latestVersionCode || "latest");
+      const lastNotified = await AsyncStorage.getItem(LAST_VERSION_NOTIFIED_KEY);
+      if (lastNotified === versionKey) return;
 
-      const result = await checkForUpdates();
-
-      if (result.updateAvailable && result.updateInfo) {
-        const lastNotifiedVersion = await AsyncStorage.getItem(LAST_VERSION_NOTIFIED_KEY);
-        const currentVersion = result.updateInfo.versionCode.toString();
-
-        if (lastNotifiedVersion !== currentVersion) {
-          await AsyncStorage.setItem(LAST_VERSION_NOTIFIED_KEY, currentVersion);
-
-          addNotification({
-            type: "update",
-            title: "App Update Available",
-            message: `Version ${result.updateInfo.versionName} is now available! ${result.updateInfo.releaseNotes || "Tap to download."}`,
-            data: {
-              downloadUrl: result.updateInfo.downloadUrl,
-              versionName: result.updateInfo.versionName,
-              forceUpdate: result.updateInfo.forceUpdate,
-            },
-          });
-        }
-      }
+      addNotification({
+        type: "update",
+        title: "App Update Available",
+        message: info.message || "A new version of Jade Royale is available.",
+        status: "success",
+        data: info,
+      });
+      await AsyncStorage.setItem(LAST_VERSION_NOTIFIED_KEY, versionKey);
     } catch (error) {
       console.error("[Notifications] Error checking for app update:", error);
     }
   }, [addNotification]);
 
   return (
-    <NotificationsContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        isModalVisible,
-        showModal,
-        hideModal,
-        addNotification,
-        markAsRead,
-        markAllAsRead,
-        deleteNotification,
-        clearAllNotifications,
-        notifyDeposit,
-        notifyWithdrawal,
-        notifyBonus,
-        notifySpinResult,
-        notifyDragonEgg,
-        checkForAppUpdate,
-      }}
-    >
+    <NotificationsContext.Provider value={{
+      notifications,
+      unreadCount,
+      isModalVisible,
+      showModal: () => setIsModalVisible(true),
+      hideModal: () => setIsModalVisible(false),
+      addNotification,
+      markAsRead,
+      markAllAsRead,
+      deleteNotification,
+      clearAllNotifications,
+      notifyDeposit,
+      notifyWithdrawal,
+      notifyBonus,
+      notifySpinResult,
+      notifyDragonEgg,
+      checkForAppUpdate,
+    }}>
       {children}
     </NotificationsContext.Provider>
   );
@@ -307,8 +238,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
 export function useNotifications() {
   const context = useContext(NotificationsContext);
-  if (context === undefined) {
-    throw new Error("useNotifications must be used within a NotificationsProvider");
-  }
+  if (!context) throw new Error("useNotifications must be used within NotificationsProvider");
   return context;
 }
