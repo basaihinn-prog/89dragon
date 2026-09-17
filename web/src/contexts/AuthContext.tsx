@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import { fetchUserProfile, refreshBalance as apiRefreshBalance, setOnUnauthorizedCallback } from '../services/api';
-import { API_BASE_URL, API_KEY as CONFIG_API_KEY } from '../services/config';
+import { API_BASE_URL, API_KEY, APP_VERSION_CODE } from '../services/config';
 
 export interface User {
   id: number;
@@ -27,11 +27,28 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 const TOKEN_KEY = 'jr_token';
 const USER_KEY = 'jr_user';
-const API_BASE = API_BASE_URL;
-const API_KEY = CONFIG_API_KEY;
+
+function buildHeaders(token?: string | null): Record<string, string> {
+  return {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function numberOr(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeAvatar(avatar?: string): string | undefined {
+  if (!avatar || avatar.startsWith('http')) return avatar;
+  const origin = API_BASE_URL.replace(/\/api\/?$/, '');
+  return `${origin}${avatar.startsWith('/') ? '' : '/'}${avatar}`;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -39,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const doLogout = useCallback(() => {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setToken(null);
@@ -47,91 +66,99 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setOnUnauthorizedCallback(doLogout);
-    const storedToken = localStorage.getItem(TOKEN_KEY);
-    const storedUser = localStorage.getItem(USER_KEY);
+
+    // Migrate away from persistent localStorage tokens. Existing tokens are accepted
+    // for this session only and then removed from localStorage.
+    const storedToken = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
+    const storedUser = sessionStorage.getItem(USER_KEY) || localStorage.getItem(USER_KEY);
+
     if (storedToken && storedUser) {
       try {
+        const parsed = JSON.parse(storedUser) as User;
+        sessionStorage.setItem(TOKEN_KEY, storedToken);
+        sessionStorage.setItem(USER_KEY, JSON.stringify(parsed));
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch {}
+        setUser(parsed);
+      } catch {
+        doLogout();
+      }
     }
+
     setIsLoading(false);
   }, [doLogout]);
 
   const login = useCallback(async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (!API_BASE_URL) return { success: false, error: 'API is not configured' };
+
     try {
-      // Use the player/mobile authentication route. The generic /api/login route
-      // belongs to the broader backend auth surface and can resolve the wrong account type.
-      const response = await fetch(`${API_BASE}/mobile/login`, {
+      const response = await fetch(`${API_BASE_URL}/mobile/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
-        },
-        body: JSON.stringify({ username, password, app_version: 2, platform: 'web' }),
+        headers: buildHeaders(),
+        body: JSON.stringify({
+          username,
+          password,
+          app_version: APP_VERSION_CODE,
+          platform: 'web',
+        }),
       });
 
       const text = await response.text();
-      let result: any;
+      let payload: any;
       try {
-        result = JSON.parse(text);
+        payload = text ? JSON.parse(text) : {};
       } catch {
         return { success: false, error: 'Invalid server response' };
       }
 
-      if (!response.ok || !result?.token) {
-        return { success: false, error: result?.message || result?.error || 'Invalid credentials' };
+      if (response.status === 426 || payload?.error === 'update_required') {
+        return { success: false, error: 'Please refresh or update to the latest version.' };
       }
 
-      const newToken = result.token;
-      const userData = result.user;
-      const user: User = {
-        id: userData?.id || 0,
-        user_id: userData?.user_id || userData?.id || 0,
-        shop_id: userData?.shop_id,
-        username: userData?.username || username,
-        email: userData?.email || '',
-        balance: parseFloat(userData?.balance) || 0,
-        api_token: newToken,
+      if (!response.ok || !payload?.token) {
+        return { success: false, error: payload?.message || payload?.error || 'Invalid credentials' };
+      }
+
+      const accessToken = String(payload.token);
+      const raw = payload.user || {};
+      let nextUser: User = {
+        id: Number(raw.id || 0),
+        user_id: Number(raw.user_id || raw.id || 0),
+        shop_id: raw.shop_id,
+        username: raw.username || username,
+        email: raw.email || '',
+        balance: numberOr(raw.balance, 0),
+        phone: raw.phone,
+        avatar: normalizeAvatar(raw.avatar),
+        api_token: accessToken,
       };
 
-      localStorage.setItem(TOKEN_KEY, newToken);
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
-      setToken(newToken);
-      setUser(user);
-
-      // Fetch full profile
       try {
-        const profileRes = await fetch(`${API_BASE}/mobile/profile`, {
-          headers: {
-            Authorization: `Bearer ${newToken}`,
-            Accept: 'application/json',
-            ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
-          },
+        const profileResponse = await fetch(`${API_BASE_URL}/mobile/profile`, {
+          headers: buildHeaders(accessToken),
         });
-        if (profileRes.ok) {
-          const pd = await profileRes.json();
-          const pu = pd.user || pd;
-          let avatarUrl = pu.avatar;
-          if (avatarUrl && !avatarUrl.startsWith('http')) {
-            const base = API_BASE.replace('/api', '');
-            avatarUrl = avatarUrl.startsWith('/') ? `${base}${avatarUrl}` : `${base}/${avatarUrl}`;
-          }
-          const updated: User = {
-            ...user,
-            balance: parseFloat(pu.balance) || user.balance,
-            email: pu.email || user.email,
-            avatar: avatarUrl,
-            phone: pu.phone,
-            user_id: pu.user_id || user.user_id,
-            shop_id: pu.shop_id || user.shop_id,
+        if (profileResponse.ok) {
+          const profilePayload = await profileResponse.json();
+          const profile = profilePayload?.user || profilePayload;
+          nextUser = {
+            ...nextUser,
+            id: Number(profile?.id || nextUser.id),
+            user_id: Number(profile?.user_id || profile?.id || nextUser.user_id || nextUser.id),
+            shop_id: profile?.shop_id ?? nextUser.shop_id,
+            username: profile?.username || profile?.name || nextUser.username,
+            email: profile?.email ?? nextUser.email,
+            phone: profile?.phone ?? nextUser.phone,
+            avatar: normalizeAvatar(profile?.avatar || nextUser.avatar),
+            balance: numberOr(profile?.balance, nextUser.balance),
           };
-          setUser(updated);
-          localStorage.setItem(USER_KEY, JSON.stringify(updated));
         }
       } catch {}
 
+      sessionStorage.setItem(TOKEN_KEY, accessToken);
+      sessionStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+      setToken(accessToken);
+      setUser(nextUser);
       return { success: true };
     } catch {
       return { success: false, error: 'Unable to connect to server. Please check your connection.' };
@@ -140,70 +167,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     if (token) {
-      fetch(`${API_BASE}/mobile/logout`, {
+      fetch(`${API_BASE_URL}/mobile/logout`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
-        },
+        headers: buildHeaders(token),
       }).catch(() => {});
     }
     doLogout();
-  }, [token, doLogout]);
+  }, [doLogout, token]);
+
+  const persistUser = useCallback((nextUser: User) => {
+    setUser(nextUser);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+  }, []);
 
   const refreshBalance = useCallback(async () => {
     if (!token || !user) return;
     const result = await apiRefreshBalance(token);
-    if (result.success && result.data) {
-      const bal = (result.data as any).balance ?? (result.data as any).user?.balance ?? (result.data as any).data?.balance;
-      if (typeof bal !== 'undefined') {
-        const newBal = parseFloat(bal);
-        if (!isNaN(newBal)) {
-          const updated = { ...user, balance: newBal };
-          setUser(updated);
-          localStorage.setItem(USER_KEY, JSON.stringify(updated));
-        }
-      }
-    }
-  }, [token, user]);
+    if (!result.success || !result.data) return;
+
+    const rawBalance = (result.data as any).balance ?? (result.data as any).user?.balance ?? (result.data as any).data?.balance;
+    persistUser({ ...user, balance: numberOr(rawBalance, user.balance) });
+  }, [persistUser, token, user]);
 
   const refreshProfile = useCallback(async () => {
     if (!token || !user) return;
     const result = await fetchUserProfile(token);
-    if (result.success && result.data) {
-      const pu = (result.data as any).user || result.data;
-      let avatarUrl = pu.avatar || user.avatar;
-      if (avatarUrl && !avatarUrl.startsWith('http')) {
-        const base = API_BASE.replace('/api', '');
-        avatarUrl = avatarUrl.startsWith('/') ? `${base}${avatarUrl}` : `${base}/${avatarUrl}`;
-      }
-      const updated: User = {
-        ...user,
-        username: pu.username || pu.name || user.username,
-        email: pu.email || user.email,
-        balance: parseFloat(pu.balance) || user.balance,
-        phone: pu.phone || user.phone,
-        avatar: avatarUrl,
-        user_id: pu.user_id || user.user_id,
-        shop_id: pu.shop_id || user.shop_id,
-      };
-      setUser(updated);
-      localStorage.setItem(USER_KEY, JSON.stringify(updated));
-    }
-  }, [token, user]);
+    if (!result.success || !result.data) return;
+
+    const profile = (result.data as any).user || result.data;
+    persistUser({
+      ...user,
+      id: Number(profile?.id || user.id),
+      user_id: Number(profile?.user_id || profile?.id || user.user_id || user.id),
+      shop_id: profile?.shop_id ?? user.shop_id,
+      username: profile?.username || profile?.name || user.username,
+      email: profile?.email ?? user.email,
+      phone: profile?.phone ?? user.phone,
+      avatar: normalizeAvatar(profile?.avatar || user.avatar),
+      balance: numberOr(profile?.balance, user.balance),
+    });
+  }, [persistUser, token, user]);
 
   const setBalance = useCallback((balance: number) => {
-    if (!user) return;
-    const updated = { ...user, balance };
-    setUser(updated);
-    localStorage.setItem(USER_KEY, JSON.stringify(updated));
-  }, [user]);
+    if (!user || !Number.isFinite(balance)) return;
+    persistUser({ ...user, balance });
+  }, [persistUser, user]);
 
   return (
     <AuthContext.Provider value={{
-      user, token, isLoading,
-      isAuthenticated: !!token && !!user,
-      login, logout, refreshBalance, refreshProfile, setBalance,
+      user,
+      token,
+      isLoading,
+      isAuthenticated: Boolean(token && user),
+      login,
+      logout,
+      refreshBalance,
+      refreshProfile,
+      setBalance,
     }}>
       {children}
     </AuthContext.Provider>
@@ -211,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
 }
