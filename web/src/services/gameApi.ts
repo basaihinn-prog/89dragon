@@ -80,10 +80,18 @@ export async function fetchAllCategories(token: string): Promise<Category[]> {
 
 function validateLauncherUrl(rawUrl: string): string {
   const base = GAME_LAUNCHER_BASE_URL || API_BASE_URL.replace(/\/api\/?$/, '');
-  const resolved = new URL(rawUrl, base);
-  if (resolved.protocol !== 'https:') throw new Error('Game launcher must use HTTPS');
-  if (base && resolved.origin !== new URL(base).origin) throw new Error('Unexpected game launcher origin');
-  return resolved.toString();
+  if (!base) throw new Error('Game launcher base URL is not configured');
+
+  const expectedOrigin = new URL(base).origin;
+  const parsed = new URL(rawUrl, base);
+
+  if (/^\/launcher\/session\/[A-Za-z0-9]{64}$/.test(parsed.pathname)) {
+    return new URL(`${parsed.pathname}${parsed.search}${parsed.hash}`, expectedOrigin).toString();
+  }
+
+  if (parsed.protocol !== 'https:') throw new Error('Game launcher must use HTTPS');
+  if (parsed.origin !== expectedOrigin) throw new Error('Unexpected game launcher origin');
+  return parsed.toString();
 }
 
 export async function launchGameSession(
