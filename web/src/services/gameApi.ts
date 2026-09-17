@@ -1,0 +1,111 @@
+import { API_BASE_URL, API_KEY, GAME_LAUNCHER_BASE_URL } from './config';
+import type { ApiResponse, Category, Game } from './api';
+
+const PAGE_SIZE = 500;
+const MAX_PAGES = 20;
+
+function headers(token: string): Record<string, string> {
+  return {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+    ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
+  };
+}
+
+async function readJson(response: Response): Promise<any> {
+  const text = await response.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(`Invalid JSON response (${response.status})`);
+  }
+}
+
+function errorMessage(payload: any, status: number): string {
+  return payload?.message || payload?.error || `Request failed (${status})`;
+}
+
+export async function fetchAllGames(token: string): Promise<Game[]> {
+  if (!API_BASE_URL || !token) return [];
+
+  const all: Game[] = [];
+  const seen = new Set<number | string>();
+
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const response = await fetch(`${API_BASE_URL}/mobile/games?limit=${PAGE_SIZE}&page=${page}`, {
+      headers: headers(token),
+    });
+    const payload = await readJson(response);
+
+    if (!response.ok) throw new Error(errorMessage(payload, response.status));
+
+    const games: Game[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.games)
+        ? payload.games
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+
+    for (const game of games) {
+      const key = game.id ?? game.name;
+      if (!seen.has(key)) {
+        seen.add(key);
+        all.push(game);
+      }
+    }
+
+    const lastPage = Number(payload?.last_page || 0);
+    if ((lastPage > 0 && page >= lastPage) || games.length < PAGE_SIZE) break;
+  }
+
+  return all;
+}
+
+export async function fetchAllCategories(token: string): Promise<Category[]> {
+  if (!API_BASE_URL || !token) return [];
+  const response = await fetch(`${API_BASE_URL}/mobile/games/categories`, {
+    headers: headers(token),
+  });
+  const payload = await readJson(response);
+  if (!response.ok) throw new Error(errorMessage(payload, response.status));
+
+  return Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.categories)
+      ? payload.categories
+      : [];
+}
+
+function validateLauncherUrl(rawUrl: string): string {
+  const base = GAME_LAUNCHER_BASE_URL || API_BASE_URL.replace(/\/api\/?$/, '');
+  const resolved = new URL(rawUrl, base);
+  if (resolved.protocol !== 'https:') throw new Error('Game launcher must use HTTPS');
+  if (base && resolved.origin !== new URL(base).origin) throw new Error('Unexpected game launcher origin');
+  return resolved.toString();
+}
+
+export async function launchGameSession(
+  token: string,
+  gameName: string,
+): Promise<ApiResponse<{ url: string; launcher_url?: string; expires_in?: number; balance?: number }>> {
+  if (!API_BASE_URL || !token) return { success: false, error: 'Missing API configuration or session' };
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/mobile/games/${encodeURIComponent(gameName)}/launch`, {
+      headers: headers(token),
+    });
+    const payload = await readJson(response);
+
+    if (!response.ok) return { success: false, error: errorMessage(payload, response.status) };
+
+    const rawUrl = payload?.url || payload?.launcher_url;
+    if (!rawUrl) return { success: false, error: 'Game launcher URL was not returned' };
+
+    const url = validateLauncherUrl(rawUrl);
+    return { success: true, data: { ...payload, url, launcher_url: url } };
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'Unable to launch game' };
+  }
+}
