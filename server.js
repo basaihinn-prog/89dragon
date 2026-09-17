@@ -36,7 +36,7 @@ app.use(express.static(distPath, {
   immutable: false,
 }));
 
-app.get("*", (req, res) => {
+app.use((req, res) => {
   res.sendFile(indexHtml);
 });
 
