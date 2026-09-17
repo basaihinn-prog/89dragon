@@ -76,12 +76,6 @@
       "reactCompiler": true
     },
     "extra": {
-      "versionCode": 3,
-      "apiBaseUrl": "https://bxbet.asia/api",
-      "wsBaseUrl": "wss://bxbet.asia",
-      "imageBaseUrl": "https://bxbet.asia",
-      "gameLauncherBaseUrl": "https://bxbet.asia",
-      "apiKey": "XwZLCzYHh44zLCQgebMzuOdJdy5Zs8TLETgnmgxKbLI77PhoYL8hg2PYyiO4OVHy",
       "eas": {
         "projectId": "ab571268-159d-4970-913a-65cee09e5cd5"
       }
