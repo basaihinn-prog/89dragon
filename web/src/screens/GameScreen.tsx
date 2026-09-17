@@ -22,6 +22,8 @@ export function GameScreen() {
       return;
     }
 
+    const gameName = game.name;
+    const accessToken = token;
     let cancelled = false;
 
     async function loadGame() {
@@ -29,7 +31,7 @@ export function GameScreen() {
       setError(null);
       setGameUrl(null);
 
-      const result = await launchGameSession(token, game.name);
+      const result = await launchGameSession(accessToken, gameName);
       if (cancelled) return;
 
       if (!result.success || !result.data?.url) {
