@@ -20,6 +20,7 @@ import { NeonButton } from "@/components/NeonButton";
 import { NeonInput } from "@/components/NeonInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { NeonColors, Spacing, BorderRadius, createBoxShadow, createTextShadow } from "@/constants/theme";
+import { Dragon89LoginCard } from "../components/dragon89/Dragon89LoginCard";
 
 const dragon89Logo = require("../assets/images/dragon89-login.png");
 
@@ -342,6 +343,15 @@ export default function LoginScreen() {
       setError("An unexpected error occurred. Please try again.");
     }
   };
+
+  if (!isLandscape) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="dark" />
+        <Dragon89LoginCard onLogin={login} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

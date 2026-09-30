@@ -32,6 +32,8 @@ import { Game } from "@/services/api";
 import { checkForUpdates, UpdateInfo } from "@/services/updateChecker";
 import { NeonColors, Spacing, GradientColors, BorderRadius, PremiumColors, GlassColors, PremiumBorderColors, createBoxShadow, createTextShadow } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootNavigator";
+import { Dragon89HomeScreen } from "../components/dragon89/Dragon89HomeScreen";
+import { Dragon89GalleryScreen } from "../components/dragon89/Dragon89GalleryScreen";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -682,6 +684,7 @@ export default function MainGalleryScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [portraitScreen, setPortraitScreen] = useState<"home" | "gallery">("home");
 
   const SIDEBAR_WIDTH = isLandscape ? SIDEBAR_WIDTH_LANDSCAPE : SIDEBAR_WIDTH_PORTRAIT;
   const BOTTOM_BAR_HEIGHT = isLandscape ? BOTTOM_BAR_HEIGHT_LANDSCAPE : BOTTOM_BAR_HEIGHT_PORTRAIT;
@@ -825,6 +828,63 @@ export default function MainGalleryScreen() {
   const landscapeCardWidth = Math.floor(landscapeCardHeight * 1.4);
   const cardWidth = isPortraitMode && portraitCardWidth ? portraitCardWidth : landscapeCardWidth;
   const cardHeight = isPortraitMode && portraitCardHeight ? portraitCardHeight : landscapeCardHeight;
+
+  if (!isLandscape) {
+    const portraitGames = filteredGames;
+    const commonProps = {
+      games: portraitGames,
+      favorites,
+      selectedCategory,
+      onCategoryChange: setSelectedCategory,
+      onToggleFavorite: toggleFavorite,
+      onSelectGame: handleGamePress,
+      isLoading: isLoading || isRetrying,
+      error,
+      onRetry: handleRetry,
+    };
+
+    return (
+      <View style={styles.portraitShell}>
+        <StatusBar style="light" />
+        <View style={styles.portraitContent}>
+          {portraitScreen === "home" ? (
+            <Dragon89HomeScreen
+              {...commonProps}
+              onOpenGallery={() => setPortraitScreen("gallery")}
+            />
+          ) : (
+            <Dragon89GalleryScreen
+              {...commonProps}
+              onBack={() => setPortraitScreen("home")}
+            />
+          )}
+        </View>
+        <PortraitActionRail
+          bottomInset={insets.bottom}
+          actions={[
+            { label: "Profile", icon: "user", accessibilityLabel: "Open profile", onPress: handleProfilePress },
+            {
+              label: "Alerts",
+              icon: "bell",
+              accessibilityLabel: unreadCount > 0 ? `Open alerts, ${unreadCount} unread` : "Open alerts",
+              badge: unreadCount > 0 ? String(unreadCount > 99 ? "99+" : unreadCount) : undefined,
+              onPress: showNotifications,
+            },
+            { label: "Deposit", icon: "plus-circle", accessibilityLabel: "Open deposit", onPress: () => navigation.navigate("Deposit") },
+            { label: "Spin", icon: "target", accessibilityLabel: "Open spin wheel", onPress: showSpinWheel },
+            { label: "Cashout", icon: "download", accessibilityLabel: "Open cashout", onPress: () => navigation.navigate("Withdrawal") },
+            { label: "Bonus", icon: "gift", accessibilityLabel: "Open daily bonus", onPress: showDailyBonus },
+            { label: "Settings", icon: "settings", accessibilityLabel: "Open settings", onPress: handleSettingsPress },
+          ]}
+        />
+        <UpdateModal
+          visible={showUpdateModal}
+          updateInfo={updateInfo}
+          onClose={() => setShowUpdateModal(false)}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -1000,6 +1060,52 @@ export default function MainGalleryScreen() {
   );
 }
 
+interface PortraitAction {
+  label: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  accessibilityLabel: string;
+  onPress: () => void;
+  badge?: string;
+}
+
+function PortraitActionRail({
+  bottomInset,
+  actions,
+}: {
+  bottomInset: number;
+  actions: PortraitAction[];
+}) {
+  return (
+    <ScrollView
+      horizontal
+      style={[styles.portraitActionRail, { height: 72 + bottomInset }]}
+      contentContainerStyle={[styles.portraitActionRailContent, { paddingBottom: bottomInset + Spacing.xs }]}
+      showsHorizontalScrollIndicator={false}
+      accessibilityLabel="Account and casino actions"
+    >
+      {actions.map((action) => (
+        <Pressable
+          key={action.label}
+          onPress={action.onPress}
+          style={styles.portraitAction}
+          accessibilityRole="button"
+          accessibilityLabel={action.accessibilityLabel}
+        >
+          <View style={styles.portraitActionIcon}>
+            <Feather name={action.icon} size={18} color={NeonColors.gold} />
+            {action.badge ? (
+              <View style={styles.portraitActionBadge}>
+                <ThemedText style={styles.portraitActionBadgeText}>{action.badge}</ThemedText>
+              </View>
+            ) : null}
+          </View>
+          <ThemedText style={styles.portraitActionLabel}>{action.label}</ThemedText>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1110,5 +1216,61 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 13,
     fontStyle: "italic",
+  },
+  portraitShell: {
+    flex: 1,
+    backgroundColor: "#11111D",
+  },
+  portraitContent: {
+    flex: 1,
+  },
+  portraitActionRail: {
+    flexGrow: 0,
+    borderTopWidth: 1,
+    borderTopColor: "#3D2D4D",
+    backgroundColor: "rgba(17, 17, 29, 0.98)",
+  },
+  portraitActionRailContent: {
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingTop: 7,
+  },
+  portraitAction: {
+    width: 68,
+    minHeight: 58,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    borderRadius: 10,
+  },
+  portraitActionIcon: {
+    width: 24,
+    height: 23,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  portraitActionBadge: {
+    position: "absolute",
+    top: -5,
+    right: -10,
+    minWidth: 15,
+    height: 15,
+    paddingHorizontal: 3,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F435B9",
+  },
+  portraitActionBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 8,
+    fontWeight: "800",
+    lineHeight: 10,
+  },
+  portraitActionLabel: {
+    color: "#F5F0E9",
+    fontSize: 9,
+    fontWeight: "700",
   },
 });

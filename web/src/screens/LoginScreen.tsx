@@ -96,14 +96,14 @@ export function LoginScreen() {
             textShadow: '0 0 20px rgba(212,175,55,0.7), 0 0 40px rgba(212,175,55,0.4)',
             letterSpacing: '2px',
           }}>
-            JADE
+            DRAGON
           </span>
           <span style={{
             fontFamily: 'Orbitron, sans-serif',
             fontSize: '20px', fontWeight: '700',
             color: 'rgba(212,175,55,0.7)', letterSpacing: '6px',
           }}>
-            ROYALE
+            89
           </span>
         </div>
 
