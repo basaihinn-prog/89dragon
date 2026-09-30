@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Jade Royale",
+    "name": "Dragon89",
     "slug": "jade-royale",
     "platforms": ["ios", "android", "web"],
     "version": "2.1.0",
@@ -37,8 +37,8 @@
       "output": "single",
       "favicon": "./assets/images/favicon.png",
       "bundler": "metro",
-      "name": "Jade Royale",
-      "shortName": "Jade Royale",
+      "name": "Dragon89",
+      "shortName": "Dragon89",
       "description": "Premium casino gaming experience",
       "themeColor": "#0D0D0D",
       "backgroundColor": "#0D0D0D",

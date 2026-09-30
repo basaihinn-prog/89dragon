@@ -36,7 +36,7 @@ export function HeaderBar({
           style={styles.logo}
           resizeMode="contain"
         />
-        <ThemedText style={styles.appName}>Jade Royale</ThemedText>
+        <ThemedText style={styles.appName}>Dragon89</ThemedText>
       </View>
 
       <View style={styles.rightSection}>

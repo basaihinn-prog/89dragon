@@ -59,7 +59,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
 
       <View style={styles.content}>
         <ThemedText type="h1" style={styles.title}>
-          Jade Royale Hit a Snag
+          Dragon89 Hit a Snag
         </ThemedText>
 
         <ThemedText type="body" style={styles.message}>
@@ -81,7 +81,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             type="body"
             style={[styles.buttonText, { color: "#0D0D0D" }]}
           >
-            Restart Jade Royale
+            Restart Dragon89
           </ThemedText>
         </Pressable>
       </View>

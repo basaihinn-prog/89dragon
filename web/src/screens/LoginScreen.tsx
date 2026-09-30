@@ -74,7 +74,7 @@ export function LoginScreen() {
         {/* Logo */}
         <img
           src={logoUrl}
-          alt="Jade Royale"
+          alt="Dragon89"
           onError={(e) => {
             const img = e.currentTarget;
             img.style.display = 'none';
@@ -200,7 +200,7 @@ export function LoginScreen() {
               fontSize: '10px', fontWeight: '700',
               color: 'rgba(212,175,55,0.3)', letterSpacing: '4px',
             }}>
-              JADE ROYALE
+              Dragon89
             </span>
             <div style={{ flex: 1, height: '1px', background: 'rgba(212,175,55,0.15)' }} />
           </div>

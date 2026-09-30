@@ -117,7 +117,7 @@ export function MainGalleryScreen() {
             {!logoError ? (
               <img
                 src={LOGO_URL}
-                alt="Jade Royale"
+                alt="Dragon89"
                 onError={() => setLogoError(true)}
                 style={{ height: '36px', objectFit: 'contain' }}
               />
@@ -128,7 +128,7 @@ export function MainGalleryScreen() {
                 color: '#D4AF37',
                 textShadow: '0 0 10px rgba(212,175,55,0.5)',
               }}>
-                JADE ROYALE
+                Dragon89
               </span>
             )}
 

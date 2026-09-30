@@ -21,7 +21,7 @@ import { NeonInput } from "@/components/NeonInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { NeonColors, Spacing, BorderRadius, createBoxShadow, createTextShadow } from "@/constants/theme";
 
-const jadeRoyaleLogo = require("../attached_assets/Remove_background_project_1764881973873.png");
+const dragon89Logo = require("../assets/images/dragon89-login.png");
 
 
 interface FloatingOrbProps {
@@ -388,7 +388,7 @@ export default function LoginScreen() {
             isLandscape && styles.formContainerLandscape
           ]}>
             <Image
-              source={jadeRoyaleLogo}
+              source={dragon89Logo}
               style={isLandscape ? styles.logoLandscape : styles.logo}
               contentFit="contain"
             />
@@ -481,7 +481,7 @@ export default function LoginScreen() {
 
                           <View style={styles.footerDecoration}>
                             <View style={styles.footerLine} />
-                            <ThemedText style={styles.footerText}>JADE ROYALE</ThemedText>
+                            <ThemedText style={styles.footerText}>Dragon89</ThemedText>
                             <View style={styles.footerLine} />
                           </View>
                         </View>

@@ -1,4 +1,4 @@
-# Jade Royale Mobile App - Design Guidelines
+# Dragon89 Mobile App - Design Guidelines
 
 ## Architecture Decisions
 
@@ -51,7 +51,7 @@ Given the unique landscape-first orientation and gaming focus:
 #### 2. Login Screen
 - **Purpose:** Authenticate user to access games
 - **Layout:**
-  - Custom header: Jade Royale logo centered, no back button
+  - Custom header: Dragon89 logo centered, no back button
   - Scrollable form (vertically centered when keyboard hidden)
   - Glass-morphism card containing:
     - Username input field
@@ -198,7 +198,7 @@ Given the unique landscape-first orientation and gaming focus:
 ### Critical Assets
 
 **Required Generated Assets:**
-1. **Jade Royale Logo** - Rainbow neon style with dragon silhouette, suitable for dark backgrounds
+1. **Dragon89 Logo** - Rainbow neon style with dragon silhouette, suitable for dark backgrounds
 2. **Category Icons (4 total):**
    - Hot: Flame icon with orange-to-red gradient
    - Favorites: Heart icon with pink neon glow

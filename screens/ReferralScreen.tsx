@@ -83,13 +83,13 @@ export default function ReferralScreen() {
     }
 
     const bonus = stats.refereeBonus?.toFixed(2) || "5.00";
-    const message = `Join me on Jade Royale and get $${bonus} FREE when you sign up!\n\nUse my referral code: ${stats.referralCode}\n\nSign up here: ${stats.referralLink}`;
+    const message = `Join me on Dragon89 and get $${bonus} FREE when you sign up!\n\nUse my referral code: ${stats.referralCode}\n\nSign up here: ${stats.referralLink}`;
 
     try {
       if (Platform.OS !== "web") {
         const result = await Share.share({
           message,
-          title: "Join Jade Royale",
+          title: "Join Dragon89",
         });
         if (result.action === Share.dismissedAction) {
           // User dismissed share dialog - no action needed

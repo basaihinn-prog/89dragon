@@ -1,20 +1,20 @@
-# Jade Royale - Casino Gaming App (Mobile + Web)
+# Dragon89 - Casino Gaming App (Mobile + Web)
 
 **Version:** 3.0.0
 
 ## Overview
 
-Jade Royale is both a React Native mobile app (Expo) and a full React web app. The web app is the primary running app served by Vite at port 5000. It replicates all features of the mobile app with the same neon/glassmorphic design system.
+Dragon89 is both a React Native mobile app (Expo) and a full React web app. The root Expo app is the intended production browser frontend (exported into static-build); web/ is a separate Vite app for the workspace preview. They are not interchangeable builds.
 
-### Web App (Primary - runs in browser)
+### Separate Vite web app (workspace preview)
 Located in `web/` directory. Built with React 18 + Vite + TypeScript + React Router v6. Served at port 5000.
 
 **Start command:** `cd web && npm run dev`
 
-### Mobile App (Expo)
-The original React Native app remains in the root directory for EAS builds.
+### Root Expo app (mobile and production web export)
+The React Native app remains at the repository root for native builds and Expo web exports. Generate production web assets with npm run build:web or scripts/build.js after setting EXPO_PUBLIC_* endpoints.
 
-Jade Royale is a React Native mobile application for a casino gaming platform. Built with Expo, it provides a landscape-first gaming experience with WebView-based game integration, real-time balance tracking, and JWT authentication against an existing Laravel casino backend.
+Dragon89 is a React Native mobile application for a casino gaming platform. Built with Expo, it provides a landscape-first gaming experience with WebView-based game integration, real-time balance tracking, and JWT authentication against an existing Laravel casino backend.
 
 The app features a neon-themed glassmorphic UI, persistent sidebar navigation, game favorites, transaction history, and user profile management. Games are categorized (Hot, Favorites, Slots, Arcade) and launched via WebSocket connections with dynamic orientation support.
 

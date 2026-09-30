@@ -35,7 +35,7 @@ function AppRoutes() {
             fontFamily: 'Orbitron, sans-serif',
             color: 'rgba(212,175,55,0.6)', fontSize: '14px', letterSpacing: '2px',
           }}>
-            JADE ROYALE
+            Dragon89
           </p>
         </div>
       </div>

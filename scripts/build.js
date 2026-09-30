@@ -72,7 +72,7 @@ function verifyBuild() {
 }
 
 async function main() {
-  console.log("Building Jade Royale web app for deployment...");
+  console.log("Building Dragon89 web app for deployment...");
 
   prepareDirectories();
   buildWebApp();

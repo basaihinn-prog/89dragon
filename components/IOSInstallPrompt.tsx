@@ -79,11 +79,11 @@ export function IOSInstallPrompt() {
               <View style={styles.iconContainer}>
                 <Feather name="download" size={24} color={NeonColors.gold} />
               </View>
-              <ThemedText style={styles.title}>Install Jade Royale</ThemedText>
+              <ThemedText style={styles.title}>Install Dragon89</ThemedText>
             </View>
 
             <ThemedText style={styles.description}>
-              Add Jade Royale to your home screen for the best experience
+              Add Dragon89 to your home screen for the best experience
             </ThemedText>
 
             <View style={styles.steps}>

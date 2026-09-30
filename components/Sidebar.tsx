@@ -196,7 +196,7 @@ const slotsIcon = require("../attached_assets/generated_images/neon_slot_machine
 const fishIcon = require("../attached_assets/generated_images/neon_fish_game_icon.png");
 const tablesIcon = require("../attached_assets/generated_images/neon_card_tables_icon.png");
 const favesIcon = require("../attached_assets/generated_images/neon_favorites_heart_icon.png");
-const jadeRoyaleLogo = require("../attached_assets/targeted_element_1765780843892.png");
+const dragon89Logo = require("../assets/images/dragon89-wordmark.png");
 interface SidebarProps {
   selectedCategory: CategoryFilter;
   onCategoryChange: (category: CategoryFilter) => void;

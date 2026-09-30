@@ -44,7 +44,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
     <Animated.View style={[styles.container, animatedStyle]}>
       <StatusBar style="light" hidden />
       <Image
-        source={require("../assets/videos/splash.gif")}
+        source={require("../assets/images/dragon89-splash.png")}
         style={styles.video}
         contentFit="cover"
         transition={0}

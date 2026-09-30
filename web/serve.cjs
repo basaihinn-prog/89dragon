@@ -30,5 +30,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Jade Royale web app listening on port ${port}`);
+  console.log(`Dragon89 web app listening on port ${port}`);
 });

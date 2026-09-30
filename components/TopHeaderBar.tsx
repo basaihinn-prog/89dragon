@@ -6,7 +6,7 @@ import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const neonSettingsIcon = require("@/attached_assets/generated_images/neon_settings_gear_icon.png");
-const jadeRoyaleLogo = require("@/attached_assets/0975C570-66A0-4B19-94AC-C481B54B960A_1765012551750.jpeg");
+const dragon89Logo = require("@/assets/images/dragon89-wordmark.png");
 const defaultAvatarImage = require("@/assets/images/icon.png");
 import * as Haptics from "expo-haptics";
 import Animated, {
@@ -214,7 +214,7 @@ function NeonLogo({ isPortrait = false }: { isPortrait?: boolean }) {
     <View style={styles.logoContainer}>
       <View style={styles.logoFrame}>
         <Image 
-          source={jadeRoyaleLogo} 
+          source={dragon89Logo} 
           style={isPortrait ? styles.logoImagePortrait : styles.logoImage}
           contentFit="contain"
         />
